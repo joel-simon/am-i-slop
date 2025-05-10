@@ -165,22 +165,22 @@
   <!-- TensorFlow.js and Transformers.js are loaded via imports -->
 </svelte:head>
 
-<div class="max-w-3xl mx-auto p-6 md:p-8 my-8 bg-white rounded-lg shadow-lg">
-  <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-6">
+<div class="max-w-3xl mx-auto p-6 md:p-8 my-2 font-terminal">
+  <h1 class="text-8xl !font-terminal-open text-center text-gray-800 mb-6">
     Are you Slop?
   </h1>
-  <p class="text-gray-600 mb-6 text-center">
+  <!-- <p class="text-gray-600 mb-6 text-center">
     Analyze how "average" or predictable your text is using a language model.
     Lower perplexity means more predictable text.
-  </p>
+  </p> -->
 
   <!-- Input Section -->
   <div class="mb-6 space-y-4">
     <div>
       <label
         for="inputText"
-        class="block text-sm font-medium text-gray-700 mb-1"
-        >Enter your text:</label
+        class="block text-lg font-medium text-gray-700 mb-1"
+        >What did you do today?</label
       >
       <textarea
         id="inputText"
@@ -246,9 +246,7 @@
   {#if loading || statusText !== "Ready to analyze text."}
     <div class="my-6 text-center">
       {#if loading}
-        <div
-          class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mb-2"
-        >
+        <div class="w-full bg-gray-200 rounded-full h-2.5 mb-2">
           <div
             class="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
             style="width: {progress * 100}%"
@@ -305,3 +303,124 @@
     {/if}
   {/if}
 </div>
+
+<style>
+  /* Terminal UI overrides */
+  .max-w-3xl {
+    background: #181c1f;
+    border: 2px solid #22272b;
+    border-radius: 0 !important;
+    box-shadow: 0 0 0 2px #101214;
+    padding-top: 0 !important;
+    position: relative;
+  }
+
+  /* Terminal header bar */
+  .max-w-3xl::before {
+    content: "";
+    display: block;
+    width: 100%;
+    height: 2.2em;
+    background: linear-gradient(90deg, #23272e 80%, #2d332b 100%);
+    border-bottom: 2px solid #22272b;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+  }
+
+  h1 {
+    color: #c7f774;
+    text-shadow:
+      0 0 2px #bada55,
+      0 0 8px #222;
+    margin-top: 2.5em;
+    margin-bottom: 0.5em;
+    font-family: "Terminal Grotesque Open", "Fira Mono", "Consolas", monospace;
+  }
+
+  label,
+  select,
+  option,
+  .text-gray-700,
+  .text-gray-800,
+  .text-gray-600 {
+    color: #bada55 !important;
+    font-family: inherit;
+  }
+
+  textarea,
+  select,
+  input {
+    background: #23272e !important;
+    color: #c7f774 !important;
+    border: 1.5px solid #2d332b !important;
+    border-radius: 0 !important;
+    font-family: inherit;
+    box-shadow: none !important;
+  }
+
+  textarea:focus,
+  select:focus,
+  input:focus {
+    outline: 2px solid #bada55 !important;
+    background: #23272e !important;
+  }
+
+  button {
+    background: #23272e !important;
+    color: #bada55 !important;
+    border: 2px solid #bada55 !important;
+    border-radius: 0 !important;
+    font-family: inherit;
+    font-weight: bold;
+    box-shadow: none !important;
+    transition:
+      background 0.2s,
+      color 0.2s;
+  }
+  button:hover {
+    background: #bada55 !important;
+    color: #23272e !important;
+  }
+
+  .bg-blue-50,
+  .border-blue-200,
+  .bg-gray-50,
+  .border-gray-200,
+  .bg-gray-100,
+  .border-gray-300,
+  .bg-red-100,
+  .border-red-400 {
+    background: #181c1f !important;
+    border-color: #2d332b !important;
+    color: #c7f774 !important;
+  }
+
+  .rounded-md,
+  .rounded-lg,
+  .rounded-full {
+    border-radius: 0 !important;
+  }
+
+  .text-blue-700,
+  .text-blue-600 {
+    color: #bada55 !important;
+  }
+
+  .text-center {
+    text-align: left !important;
+  }
+
+  .font-terminal,
+  .font-terminal-open {
+    font-family:
+      "Terminal Grotesque", "Terminal Grotesque Open", "Fira Mono", "Consolas",
+      monospace !important;
+  }
+
+  /* Remove Tailwind's default focus ring */
+  :focus {
+    box-shadow: none !important;
+  }
+</style>
