@@ -6,7 +6,7 @@
     import ScoreDistributionHistogram from './ScoreDistributionHistogram.svelte';
 
     // --- Component State ---
-    let inputText = 'I went to the gym and lifted weights.';
+    let inputText = '';
     let selectedModel = 'gpt2'; // 'distilgpt2' or 'gpt2'
     let loading = false;
     let progress = 0;
@@ -125,6 +125,8 @@
 
                     if (!response.ok) {
                         console.error('Failed to store submission:', await response.text());
+                    } else {
+                        console.log('Submission stored successfully');
                     }
                 } catch (err) {
                     console.error('Error storing submission:', err);
@@ -201,6 +203,7 @@
                 placeholder="Enter your answer..."
                 class="w-full h-40 p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 resize-y text-base"
                 disabled={loading}
+                autofocus
             ></textarea>
         </div>
 
@@ -308,7 +311,10 @@
             {getProbabilitySize}
         />
         {#if analysisResults && isFinite(analysisResults.perplexity)}
-            <ScoreDistributionHistogram userScore={analysisResults.perplexity} />
+            <ScoreDistributionHistogram
+                userScore={analysisResults.perplexity}
+                questionId={currentQuestionIndex}
+            />
         {/if}
     {/if}
 </div>

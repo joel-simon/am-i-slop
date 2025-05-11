@@ -1,6 +1,6 @@
-import { db } from './db';
+import { Kysely } from 'kysely';
 
-export async function createTables() {
+export async function up(db: Kysely<any>): Promise<void> {
     await db.schema
         .createTable('text_submissions')
         .ifNotExists()
@@ -26,4 +26,8 @@ export async function createTables() {
         .on('text_submissions')
         .column('perplexity')
         .execute();
+}
+
+export async function down(db: Kysely<any>): Promise<void> {
+    await db.schema.dropTable('text_submissions').execute();
 }
