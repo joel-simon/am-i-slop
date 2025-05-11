@@ -5,6 +5,7 @@
     import ScaledTextView from './ScaledTextView.svelte';
     import ScoreDistributionHistogram from './ScoreDistributionHistogram.svelte';
     import NeighboringSubmissions from './NeighboringSubmissions.svelte';
+    import { Button, Modal } from 'flowbite-svelte';
 
     // --- Component State ---
     let inputText = '';
@@ -14,6 +15,7 @@
     let statusText = 'Ready to analyze text.';
     let analysisResults: AnalysisResults | null = null;
     let errorMessage: string | null = null;
+    let infoModal = false;
 
     // Questions array with explicit IDs
     const questions = [
@@ -204,16 +206,36 @@
 
 <div class="max-w-3xl mx-auto p-6 md:p-8 my-2 font-terminal">
     <h1 class="text-8xl !font-terminal-open text-center text-gray-800 mb-6">Are you Slop?</h1>
-    <!-- <p class="text-gray-600 mb-6 text-center">
-    Analyze how "average" or predictable your text is using a language model.
-    Lower perplexity means more predictable text.
-  </p> -->
+
+    <Modal title="???" bind:open={infoModal} autoclose>
+        <p class="text-base leading-relaxed text-gray-500 dark:text-gray-400">
+            The year is 2030, language models guide all communications and decisions. The ultimate
+            status symbol becomes living a <i>high-entropy</i> lifestyle.
+        </p>
+        <p class="text-base leading-relaxed text-gray-500 dark:text-gray-400">
+            This tool analyzes how "average" or predictable your text is using a language model. It
+            works by comparing your writing to what a language model would expect to see next.
+        </p>
+        <p class="text-base leading-relaxed text-gray-500 dark:text-gray-400 mt-4">
+            The analysis shows:
+        </p>
+        <ul class="list-disc pl-5 mt-2 text-base leading-relaxed text-gray-500 dark:text-gray-400">
+            <li>Perplexity score: Lower means more predictable/average text</li>
+            <li>
+                Token-by-token analysis: Shows which parts of your text are more or less expected
+            </li>
+            <li>Comparison with other submissions: See how your writing compares to others</li>
+        </ul>
+        <!-- <p class="text-base leading-relaxed text-gray-500 dark:text-gray-400 mt-4">
+            Try different writing styles and see how they affect your score!
+        </p> -->
+    </Modal>
 
     <!-- Input Section -->
     <div class="mb-6 space-y-4">
         <div>
             <div class="flex justify-between items-center mb-2">
-                <label for="inputText" class="block text-lg font-medium text-gray-700"
+                <label for="inputText" class="block text-2xl font-medium text-gray-700"
                     >{questions[currentQuestionIndex].text}</label
                 >
                 <div class="flex gap-2">
@@ -244,22 +266,6 @@
         </div>
 
         <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
-            <!-- <div>
-        <label
-          for="modelSelect"
-          class="block text-sm font-medium text-gray-700 mb-1 sm:mb-0 sm:inline-block sm:mr-2"
-          >Choose model:</label
-        >
-        <select
-          id="modelSelect"
-          bind:value={selectedModel}
-          class="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-          disabled={loading}
-        >
-          <option value="distilgpt2">DistilGPT-2 (Fast)</option>
-          <option value="gpt2">GPT-2 (Better accuracy)</option>
-        </select>
-      </div> -->
             <button
                 on:click={analyzeText}
                 disabled={loading || !inputText.trim()}
@@ -290,6 +296,24 @@
                 {:else}
                     Analyze Text
                 {/if}
+            </button>
+            <button
+                on:click={() => (infoModal = true)}
+                class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-md transition duration-200 ease-in-out"
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5 inline mr-2"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                >
+                    <path
+                        fill-rule="evenodd"
+                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                        clip-rule="evenodd"
+                    />
+                </svg>
+                Info
             </button>
         </div>
     </div>
