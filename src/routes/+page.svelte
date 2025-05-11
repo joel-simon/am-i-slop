@@ -4,6 +4,7 @@
     import TokenTableAnalysis from './TokenTableAnalysis.svelte';
     import ScaledTextView from './ScaledTextView.svelte';
     import ScoreDistributionHistogram from './ScoreDistributionHistogram.svelte';
+    import NeighboringSubmissions from './NeighboringSubmissions.svelte';
 
     // --- Component State ---
     let inputText = '';
@@ -314,6 +315,11 @@
             <ScoreDistributionHistogram
                 userScore={analysisResults.perplexity}
                 questionId={currentQuestionIndex}
+            />
+            <NeighboringSubmissions
+                userScore={analysisResults.perplexity}
+                questionId={currentQuestionIndex}
+                range={10}
             />
         {/if}
     {/if}
