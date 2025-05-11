@@ -15,12 +15,29 @@
     let analysisResults: AnalysisResults | null = null;
     let errorMessage: string | null = null;
 
-    // Questions array
+    // Questions array with explicit IDs
     const questions = [
-        'What did you do today?',
+        { id: 0, text: 'What did you do today?' },
+        { id: 1, text: 'What are you thinking about?' },
+        { id: 2, text: 'What are your dreams for the future?' },
         // Add more questions here as needed
     ];
     let currentQuestionIndex = 0;
+
+    // Function to change question
+    function changeQuestion(direction: 'prev' | 'next') {
+        if (direction === 'prev' && currentQuestionIndex > 0) {
+            currentQuestionIndex--;
+        } else if (direction === 'next' && currentQuestionIndex < questions.length - 1) {
+            currentQuestionIndex++;
+        }
+        // Clear input when changing questions
+        inputText = '';
+        // Clear any previous analysis
+        analysisResults = null;
+        progressiveTokensArray = [];
+        progressiveResultsArray = [];
+    }
 
     // For progressive updates to ScaledTextView
     let progressiveTokensArray: string[] = [];
@@ -104,7 +121,7 @@
 
         try {
             // Format the input as Q&A
-            const formattedInput = `q:${questions[currentQuestionIndex]} a:${inputText}`;
+            const formattedInput = `q:${questions[currentQuestionIndex].text} a:${inputText.toLowerCase()}`;
 
             // First analyze the text to ensure model is loaded
             analysisResults = await slopAnalyzer.analyzeText(formattedInput, selectedModel);
@@ -118,9 +135,9 @@
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
-                            text: inputText,
+                            text: inputText.toLowerCase(),
                             perplexity: analysisResults.perplexity,
-                            questionId: currentQuestionIndex,
+                            questionId: questions[currentQuestionIndex].id,
                         }),
                     });
 
@@ -195,9 +212,27 @@
     <!-- Input Section -->
     <div class="mb-6 space-y-4">
         <div>
-            <label for="inputText" class="block text-lg font-medium text-gray-700 mb-1"
-                >{questions[currentQuestionIndex]}</label
-            >
+            <div class="flex justify-between items-center mb-2">
+                <label for="inputText" class="block text-lg font-medium text-gray-700"
+                    >{questions[currentQuestionIndex].text}</label
+                >
+                <div class="flex gap-2">
+                    <button
+                        on:click={() => changeQuestion('prev')}
+                        disabled={currentQuestionIndex === 0}
+                        class="px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        ← Previous
+                    </button>
+                    <button
+                        on:click={() => changeQuestion('next')}
+                        disabled={currentQuestionIndex === questions.length - 1}
+                        class="px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Next →
+                    </button>
+                </div>
+            </div>
             <textarea
                 id="inputText"
                 bind:value={inputText}
@@ -314,12 +349,12 @@
         {#if analysisResults && isFinite(analysisResults.perplexity)}
             <ScoreDistributionHistogram
                 userScore={analysisResults.perplexity}
-                questionId={currentQuestionIndex}
+                questionId={questions[currentQuestionIndex].id}
             />
             <NeighboringSubmissions
                 userScore={analysisResults.perplexity}
-                questionId={currentQuestionIndex}
-                range={10}
+                questionId={questions[currentQuestionIndex].id}
+                n={2}
             />
         {/if}
     {/if}
