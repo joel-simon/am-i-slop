@@ -6,6 +6,8 @@
     import ScoreDistributionHistogram from './ScoreDistributionHistogram.svelte';
     import NeighboringSubmissions from './NeighboringSubmissions.svelte';
     import { Button, Modal } from 'flowbite-svelte';
+    import { IconSolid } from 'flowbite-svelte-icons';
+    import * as Icons from 'flowbite-svelte-icons';
 
     // --- Component State ---
     let inputText = '';
@@ -226,6 +228,21 @@
             </li>
             <li>Comparison with other submissions: See how your writing compares to others</li>
         </ul>
+        <div
+            class="flex items-center gap-2 mt-4 text-base leading-relaxed text-gray-500 dark:text-gray-400"
+        >
+            <span>
+                Weekend project by <a href="https://www.joelsimon.net" class="underline">Joel</a>
+            </span>
+            <a
+                href="https://github.com/joel-simon/am-i-slop"
+                target="_blank"
+                rel="noopener"
+                class="ml-1"
+            >
+                <IconSolid name="GithubSolid" size="md" icon={Icons.GithubSolid} />
+            </a>
+        </div>
         <!-- <p class="text-base leading-relaxed text-gray-500 dark:text-gray-400 mt-4">
             Try different writing styles and see how they affect your score!
         </p> -->
