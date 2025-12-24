@@ -45,6 +45,7 @@
         "flowbite-svelte-icons": "^1.6.1",
         "kysely": "^0.27.6",
         "pg": "^8.15.6",
+        "runpod-sdk": "^1.1.2",
         "svelte-tippy": "^1.3.2",
         "tippy.js": "^6.3.7"
     }

@@ -3,7 +3,7 @@ import pg from 'pg';
 import type { Database } from './types';
 import * as dotenv from 'dotenv';
 
-// Load environment variables from .env file
+// Load environment variables from .env filedb
 dotenv.config();
 
 const dialect = new PostgresDialect({
