@@ -10,12 +10,20 @@
         bucket: string;
         count: number;
         userInBucket: boolean;
+        min: number;
+        max: number;
     }[] = [];
     let percentile: number | null = null;
     let chartRendered = false; // To help with re-rendering on data change
     let internalAllScores: number[] = []; // Explicit internal state for scores
     let loading = false;
     let error: string | null = null;
+
+    // --- State for clicked bucket submissions ---
+    let selectedBucketIndex: number | null = null;
+    let bucketSubmissions: { text: string; perplexity: number; created_at: string }[] = [];
+    let loadingBucket = false;
+    let bucketError: string | null = null;
 
     // --- Constants for Histogram ---
     const NUM_BUCKETS = 10;
@@ -136,6 +144,8 @@
             bucket: `${b.min.toFixed(0)}-${b.max.toFixed(0)}`,
             count: b.count,
             userInBucket: b.userInBucket,
+            min: b.min,
+            max: b.max,
         }));
 
         // Calculate percentile
@@ -154,105 +164,325 @@
         return Math.max(...histogramData.map((b) => b.count), 1); // Ensure at least 1 to prevent 0 height bars
     };
 
+    // Handle bar click to load submissions for that bucket
+    async function handleBarClick(bucketIndex: number) {
+        const bucket = histogramData[bucketIndex];
+        if (!bucket || bucket.count === 0) return;
+
+        // Toggle off if already selected
+        if (selectedBucketIndex === bucketIndex) {
+            selectedBucketIndex = null;
+            bucketSubmissions = [];
+            return;
+        }
+
+        selectedBucketIndex = bucketIndex;
+        loadingBucket = true;
+        bucketError = null;
+        bucketSubmissions = [];
+
+        try {
+            const response = await fetch(
+                `/api/submissions/${questionId}/range?min=${bucket.min}&max=${bucket.max}`
+            );
+            if (!response.ok) {
+                throw new Error('Failed to load bucket submissions');
+            }
+            const submissions = await response.json();
+
+            // Sort by created_at descending (latest first) and take 8
+            bucketSubmissions = submissions
+                .sort(
+                    (a: any, b: any) =>
+                        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                )
+                .slice(0, 8)
+                .map((s: any) => ({
+                    text: s.text,
+                    perplexity: s.perplexity,
+                    created_at: s.created_at,
+                }));
+        } catch (err) {
+            bucketError = err instanceof Error ? err.message : 'An error occurred';
+            console.error('Error loading bucket submissions:', err);
+        } finally {
+            loadingBucket = false;
+        }
+    }
+
     $: console.log('histogramData', histogramData);
 </script>
 
-<div class="score-distribution-histogram p-4 border rounded-lg shadow my-6 bg-gray-50">
-    <h3 class="text-lg font-semibold text-gray-700 mb-3 text-center">
-        Your Score in the Distribution
-    </h3>
+<div class="score-distribution-histogram">
+    <h3 class="section-title text-lg">Your Score in the Distribution</h3>
     {#if loading}
-        <p class="text-center text-gray-500">Loading distribution data...</p>
+        <p class="status-text text-sm">Loading distribution data...</p>
     {:else if error}
-        <p class="text-center text-red-500">{error}</p>
+        <p class="error-text text-sm">{error}</p>
     {:else if userScore === null || !isFinite(userScore)}
-        <p class="text-center text-gray-500">No score available or score is invalid.</p>
+        <p class="status-text text-sm">No score available or score is invalid.</p>
     {:else if !chartRendered && histogramData.length === 0}
-        <p class="text-center text-gray-500">Calculating distribution...</p>
+        <p class="status-text text-sm">Calculating distribution...</p>
     {:else if histogramData.length > 0}
-        <div
-            class="histogram flex items-end justify-around h-48 gap-1 p-2 border-b border-gray-300"
-        >
-            {#each histogramData as bucket}
-                <div class="bar-container flex flex-col items-center justify-end flex-1">
+        <div class="histogram">
+            {#each histogramData as bucket, i}
+                <button
+                    class="bar-container"
+                    class:selected={selectedBucketIndex === i}
+                    class:clickable={bucket.count > 0}
+                    on:click={() => handleBarClick(i)}
+                    disabled={bucket.count === 0}
+                    title={`Range: ${bucket.bucket}\nCount: ${bucket.count}${bucket.userInBucket ? '\n(Your score is in this range)' : ''}\n${bucket.count > 0 ? 'Click to view submissions' : ''}`}
+                >
                     <div
-                        class="bar w-full rounded-t transition-all duration-300 ease-in-out"
-                        style="height: {(bucket.count / maxCount()) *
-                            156}px; background-color: {bucket.userInBucket
-                            ? '#bada55'
-                            : '#3d4451'};"
-                        title={`Range: ${bucket.bucket}
-Count: ${bucket.count}${bucket.userInBucket ? '\n(Your score is in this range)' : ''}`}
+                        class="bar"
+                        class:user-bucket={bucket.userInBucket}
+                        class:has-data={bucket.count > 0}
+                        style="height: {(bucket.count / maxCount()) * 156}px"
                     ></div>
-                    <div class="text-xs text-gray-600 mt-1 text-center">
-                        {bucket.bucket}
-                    </div>
-                </div>
+                    <div class="bar-label text-xs">{bucket.bucket}</div>
+                </button>
             {/each}
         </div>
         {#if percentile !== null && isFinite(userScore)}
-            <p class="text-center mt-4 text-gray-700">
-                Your score of <strong class="text-blue-600">{userScore.toFixed(2)}</strong>
-                is in the
-                <strong class="text-blue-600">{percentile.toFixed(0)}th percentile</strong>.
+            <p class="percentile-text text-sm">
+                Your score of <strong>{userScore.toFixed(2)}</strong>
+                is in the <strong>{percentile.toFixed(0)}th percentile</strong>.
             </p>
-            <p class="text-xs text-gray-500 text-center mt-1">
+            <p class="percentile-subtext text-xs">
                 (This means your score is higher than approximately {percentile.toFixed(0)}% of
                 other scores in this sample distribution.)
             </p>
         {/if}
+
+        <!-- Bucket submissions panel -->
+        {#if selectedBucketIndex !== null}
+            <div class="bucket-submissions">
+                <div class="bucket-header">
+                    <h4 class="bucket-title text-base">
+                        Latest Submissions ({histogramData[selectedBucketIndex].bucket})
+                    </h4>
+                    <button
+                        class="close-btn text-sm"
+                        on:click={() => {
+                            selectedBucketIndex = null;
+                            bucketSubmissions = [];
+                        }}
+                    >
+                        ✕
+                    </button>
+                </div>
+                {#if loadingBucket}
+                    <p class="status-text text-sm">Loading submissions...</p>
+                {:else if bucketError}
+                    <p class="error-text text-sm">{bucketError}</p>
+                {:else if bucketSubmissions.length === 0}
+                    <p class="status-text text-sm">No submissions in this range.</p>
+                {:else}
+                    <div class="submissions-list">
+                        {#each bucketSubmissions as submission, idx}
+                            <div class="submission-card">
+                                <div class="submission-header">
+                                    <!-- <span class="submission-index text-xs">#{idx + 1}</span> -->
+                                    <span class="submission-score text-sm"
+                                        >{submission.perplexity.toFixed(2)}</span
+                                    >
+                                </div>
+                                <p class="submission-text text-md">{submission.text}</p>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
+        {/if}
     {:else}
-        <p class="text-center text-gray-500">
-            Could not generate histogram for the current scores.
-        </p>
+        <p class="status-text text-sm">Could not generate histogram for the current scores.</p>
     {/if}
 </div>
 
 <style>
-    /* Terminal theme styling */
     .score-distribution-histogram {
-        background: #181c1f !important;
-        border: 2px solid #2d332b !important;
-        border-radius: 0 !important;
-        box-shadow: none !important;
+        background: #181c1f;
+        border: 2px solid #2d332b;
+        border-radius: 0;
+        padding: 1rem;
+        margin: 1.5rem 0;
     }
 
-    h3 {
-        color: #bada55 !important;
+    .section-title {
+        color: #bada55;
         text-shadow:
             0 0 2px #bada55,
             0 0 4px #222;
+        font-weight: 600;
+        margin-bottom: 1rem;
     }
 
-    .text-gray-500,
-    .text-gray-600,
-    .text-gray-700 {
-        color: #8a8a8a !important;
+    .status-text {
+        color: #8a8a8a;
     }
 
-    .text-red-500 {
-        color: #ff6b6b !important;
-    }
-
-    .text-blue-600 {
-        color: #bada55 !important;
+    .error-text {
+        color: #ff6b6b;
     }
 
     .histogram {
-        border-bottom: 2px solid #2d332b !important;
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 180px;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid #2d332b;
+        margin-bottom: 1rem;
+    }
+
+    .bar-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
+        height: 100%;
+        background: transparent;
+        border: none;
+        padding: 0;
+        cursor: default;
+        transition: all 0.2s ease;
+    }
+
+    .bar-container.clickable {
+        cursor: pointer;
+    }
+
+    .bar-container.clickable:hover .bar.has-data {
+        filter: brightness(1.3);
+        transform: scaleY(1.05);
+    }
+
+    .bar-container.selected .bar.has-data {
+        box-shadow:
+            0 0 12px #bada55,
+            0 0 4px #fff;
     }
 
     .bar {
-        transition: all 0.3s ease-in-out;
+        width: 100%;
+        background: transparent;
+        transition: all 0.2s ease;
+        min-height: 2px;
+        border-radius: 0;
     }
 
-    .bar:hover {
-        opacity: 0.8;
-        filter: brightness(1.2);
+    .bar.has-data {
+        background: #3d4451;
     }
 
-    .text-xs {
+    .bar.user-bucket {
+        background: #bada55 !important;
+        box-shadow: 0 0 4px #bada55;
+    }
+
+    .bar-label {
+        color: #8a8a8a;
+        margin-top: 0.5rem;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .percentile-text {
+        color: #8a8a8a;
+        margin-top: 1rem;
+    }
+
+    .percentile-text strong {
+        color: #bada55;
+    }
+
+    .percentile-subtext {
+        color: #666;
+        margin-top: 0.25rem;
+    }
+
+    /* Bucket submissions panel */
+    .bucket-submissions {
+        margin-top: 1.5rem;
+        padding-top: 1rem;
+        border-top: 1px solid #2d332b;
+    }
+
+    .bucket-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .bucket-title {
+        color: #bada55;
+        font-weight: 600;
+    }
+
+    .close-btn {
+        background: transparent !important;
+        border: 1px solid #3d4451 !important;
         color: #8a8a8a !important;
-        font-size: 0.7rem !important;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .close-btn:hover {
+        border-color: #bada55 !important;
+        color: #bada55 !important;
+        background: transparent !important;
+    }
+
+    .submissions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .submission-card {
+        background: #23272e;
+        border: 1px solid #2d332b;
+        border-left: 3px solid #3d4451;
+        padding: 0.75rem 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .submission-card:hover {
+        border-color: #3d4451;
+        border-left-color: #bada55;
+        transform: translateX(4px);
+    }
+
+    .submission-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .submission-index {
+        color: #666;
+        font-weight: 600;
+    }
+
+    .submission-score {
+        font-weight: 700;
+        color: #bada55;
+        font-family: 'Terminal Grotesque', 'Fira Mono', monospace;
+    }
+
+    .submission-text {
+        color: #c7f774;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-break: break-word;
     }
 </style>

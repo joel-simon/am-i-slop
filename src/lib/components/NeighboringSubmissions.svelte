@@ -147,51 +147,31 @@
     }
 </script>
 
-<div class="neighboring-submissions p-4 border rounded-lg shadow my-6 bg-gray-50">
-    <h3 class="text-lg font-semibold text-gray-700 mb-3 text-center">Nearby Submissions</h3>
+<div class="neighboring-submissions">
+    <h3 class="section-title text-lg">Nearby Submissions</h3>
     {#if loading}
-        <p class="text-center text-gray-500">Loading submissions...</p>
+        <p class="status-text text-sm">Loading submissions...</p>
     {:else if error}
-        <p class="text-center text-red-500">{error}</p>
+        <p class="error-text text-sm">{error}</p>
     {:else if userScore === null || !isFinite(userScore)}
-        <p class="text-center text-gray-500">No score available or score is invalid.</p>
+        <p class="status-text text-sm">No score available or score is invalid.</p>
     {:else if neighboringSubmissions.length === 0}
-        <p class="text-center text-gray-500">No submissions found.</p>
+        <p class="status-text text-sm">No submissions found.</p>
     {:else}
-        <div class="space-y-4">
+        <div class="submissions-list">
             {#each neighboringSubmissions as submission}
                 <div
-                    class="submission p-3 rounded-lg {submission.isCurrent
-                        ? 'bg-purple-50 border-2 border-purple-300'
-                        : submission.isAbove
-                          ? 'bg-blue-50'
-                          : 'bg-green-50'}"
+                    class="submission-card"
+                    class:is-current={submission.isCurrent}
+                    class:is-above={!submission.isCurrent && submission.isAbove}
+                    class:is-below={!submission.isCurrent && !submission.isAbove}
                 >
-                    <div class="flex justify-between items-start mb-2">
-                        <span
-                            class="text-sm font-medium {submission.isCurrent
-                                ? 'text-purple-700'
-                                : submission.isAbove
-                                  ? 'text-blue-700'
-                                  : 'text-green-700'}"
-                        >
-                            {submission.isCurrent
-                                ? 'Your Submission'
-                                : submission.isAbove
-                                  ? 'Higher Score'
-                                  : 'Lower Score'}
-                        </span>
-                        <span
-                            class="text-sm font-semibold {submission.isCurrent
-                                ? 'text-purple-600'
-                                : submission.isAbove
-                                  ? 'text-blue-600'
-                                  : 'text-green-600'}"
-                        >
-                            Perplexity: {submission.perplexity.toFixed(2)}
+                    <div class="submission-header">
+                        <span class="submission-score text-sm">
+                            {submission.perplexity.toFixed(2)}
                         </span>
                     </div>
-                    <p class="text-gray-700 whitespace-pre-wrap">{submission.text}</p>
+                    <p class="submission-text text-md">{submission.text}</p>
                 </div>
             {/each}
         </div>
@@ -199,11 +179,91 @@
 </div>
 
 <style>
-    .submission {
-        transition: all 0.2s ease-in-out;
+    .neighboring-submissions {
+        background: #181c1f;
+        border: 2px solid #2d332b;
+        border-radius: 0;
+        padding: 1rem;
+        margin: 1.5rem 0;
     }
-    .submission:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+    .section-title {
+        color: #bada55;
+        text-shadow:
+            0 0 2px #bada55,
+            0 0 4px #222;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+
+    .status-text {
+        color: #8a8a8a;
+    }
+
+    .error-text {
+        color: #ff6b6b;
+    }
+
+    .submissions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .submission-card {
+        background: #23272e;
+        border: 1px solid #2d332b;
+        padding: 0.75rem 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .submission-card:hover {
+        border-color: #3d4451;
+    }
+
+    .submission-card.is-current {
+        border-left: 3px solid #bada55;
+        background: #1e2420;
+        box-shadow: 0 0 8px rgba(186, 218, 85, 0.15);
+    }
+
+    .submission-card.is-above {
+        border-left: 3px solid #6b9fff;
+    }
+
+    .submission-card.is-below {
+        border-left: 3px solid #ff9f6b;
+    }
+
+    .submission-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .submission-score {
+        font-weight: 700;
+        font-family: 'Terminal Grotesque', 'Fira Mono', monospace;
+    }
+
+    .is-current .submission-score {
+        color: #bada55;
+        text-shadow: 0 0 4px #bada55;
+    }
+
+    .is-above .submission-score {
+        color: #6b9fff;
+    }
+
+    .is-below .submission-score {
+        color: #ff9f6b;
+    }
+
+    .submission-text {
+        color: #c7f774;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-break: break-word;
     }
 </style>
