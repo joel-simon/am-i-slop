@@ -4,6 +4,7 @@ import runpodSdk from 'runpod-sdk';
 import { RUNPOD_API_KEY, ENDPOINT_ID } from '$env/static/private';
 import { storeTextSubmission, getSubmissionsForQuestion } from '$lib/db/schema';
 import { getQuestionText } from '$lib/questions';
+import { validateText } from '$lib/utils/textFilter';
 
 // Initialize RunPod SDK
 let runpodClient: ReturnType<typeof runpodSdk> | null = null;
@@ -20,7 +21,7 @@ export const POST: RequestHandler = async ({ request }) => {
     try {
         const { text, questionId } = await request.json();
 
-        // Validate input
+        // Basic type validation
         if (!text || typeof text !== 'string') {
             return json({ error: 'Invalid input. Required: text (string)' }, { status: 400 });
         }
@@ -28,6 +29,20 @@ export const POST: RequestHandler = async ({ request }) => {
         if (typeof questionId !== 'number') {
             return json({ error: 'Invalid input. Required: questionId (number)' }, { status: 400 });
         }
+
+        // Server-side validation and sanitization (defense in depth)
+        const validation = validateText(text, 500);
+        
+        if (!validation.isValid) {
+            console.warn(`Validation failed for text: ${validation.error}`);
+            return json(
+                { error: validation.error || 'Invalid input' },
+                { status: 400 }
+            );
+        }
+
+        // Use sanitized text for all subsequent operations
+        const sanitizedText = validation.sanitized.toLowerCase();
 
         if (!endpoint) {
             return json(
@@ -38,11 +53,12 @@ export const POST: RequestHandler = async ({ request }) => {
             );
         }
 
-        console.log(`Analyzing text for question ${questionId}: "${text.substring(0, 50)}..."`);
+        console.log(`Analyzing text for question ${questionId}: "${sanitizedText.substring(0, 50)}..."`);
 
         // Format as Q&A for better perplexity (model gets context from question)
-        const formattedInput = `q:${getQuestionText(questionId)} a:${text.toLowerCase()}`;
-
+        // Use sanitized text
+        const formattedInput = `q:${getQuestionText(questionId)} a:${sanitizedText}`;
+        
         console.log(`Formatted input: "${formattedInput}"`);
 
         const result: any = await endpoint.runSync({
@@ -92,9 +108,9 @@ export const POST: RequestHandler = async ({ request }) => {
             `Total tokens: ${allTokens.length}, Question tokens: ${answerStartIndex}, Answer tokens: ${byToken.length}`
         );
 
-        // Store submission in database
+        // Store submission in database (use sanitized text)
         console.log(`Storing submission with perplexity: ${perplexity}`);
-        const submission = await storeTextSubmission(text.toLowerCase(), perplexity, questionId);
+        const submission = await storeTextSubmission(sanitizedText, perplexity, questionId);
 
         // Get all submissions for this question to calculate placement
         const allSubmissions = await getSubmissionsForQuestion(questionId);

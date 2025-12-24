@@ -9,6 +9,7 @@
     import { IconSolid } from 'flowbite-svelte-icons';
     import * as Icons from 'flowbite-svelte-icons';
     import { questions } from '$lib/questions';
+    import { validateText, getValidationError } from '$lib/utils/textFilter';
 
     // --- Component State ---
     let inputText = '';
@@ -108,6 +109,14 @@
             return;
         }
 
+        // Validate and sanitize text on client side
+        const validation = validateText(inputText.trim(), 500);
+        
+        if (!validation.isValid) {
+            errorMessage = getValidationError(validation) || 'Invalid input';
+            return;
+        }
+
         loading = true;
         analysisResults = null;
         progressiveTokensArray = []; // Clear previous progressive results
@@ -116,6 +125,9 @@
         updateProgressExternal(0, 'Loading...');
 
         try {
+            // Use sanitized text (already lowercase from validation)
+            const sanitizedText = validation.sanitized.toLowerCase();
+            
             // Call the new analyze endpoint
             const response = await fetch('/api/analyze', {
                 method: 'POST',
@@ -123,7 +135,7 @@
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    text: inputText.toLowerCase(),
+                    text: sanitizedText,
                     questionId: questions[currentQuestionIndex].id,
                 }),
             });
