@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { AnalysisResultItem } from './SlopClassifier';
+    import type { AnalysisResultItem } from '$lib/SlopClassifier';
 
     export let tokens: string[] = []; // Default to empty array, will be updated reactively
     export let results: AnalysisResultItem[] = []; // Default to empty array

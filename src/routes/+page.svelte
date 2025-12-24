@@ -1,16 +1,15 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { SlopAnalyzer, type AnalysisResults, type AnalysisResultItem } from './SlopClassifier';
-    import TokenTableAnalysis from './TokenTableAnalysis.svelte';
-    import ScaledTextView from './ScaledTextView.svelte';
-    import ScoreDistributionHistogram from './ScoreDistributionHistogram.svelte';
-    import NeighboringSubmissions from './NeighboringSubmissions.svelte';
+    import { type AnalysisResults, type AnalysisResultItem } from '$lib/SlopClassifier';
+    import ScaledTextView from '$lib/components/ScaledTextView.svelte';
+    import ScoreDistributionHistogram from '$lib/components/ScoreDistributionHistogram.svelte';
+    import NeighboringSubmissions from '$lib/components/NeighboringSubmissions.svelte';
     import { Button, Modal } from 'flowbite-svelte';
     import { IconSolid } from 'flowbite-svelte-icons';
     import * as Icons from 'flowbite-svelte-icons';
     import { questions } from '$lib/questions';
     import { validateText, getValidationError } from '$lib/utils/textFilter';
-    import DistributionPreview from './DistributionPreview.svelte';
+    import DistributionPreview from '../lib/components/DistributionPreview.svelte';
 
     // --- Component State ---
     let inputText = '';
@@ -95,9 +94,6 @@
     // For progressive updates to ScaledTextView
     let progressiveTokensArray: string[] = [];
     let progressiveResultsArray: AnalysisResultItem[] = [];
-
-    // Reference to the analyzer
-    let slopAnalyzer: SlopAnalyzer;
 
     // Update loading bar & status
     function updateProgressExternal(p: number, text: string) {
@@ -295,38 +291,49 @@
     </h1>
 
     <Modal title="???" bind:open={infoModal} autoclose>
-        <p class="text-base leading-relaxed text-gray-500 dark:text-gray-400">
+        <p class="text-base leading-relaxed text-gray-500 dark:text-gray-400 mt-0">
             The year is 2030, language models guide all communications and decisions. The ultimate
             status symbol becomes living a <i>high-entropy</i> lifestyle.
+        </p>
+        <p class="text-base leading-relaxed text-gray-500 dark:text-gray-400">
+            <strong>"Slop"</strong> is internet slang for generic, AI-generated content that feels soulless
+            and predictable.
         </p>
         <p class="text-base leading-relaxed text-gray-500 dark:text-gray-400">
             This tool analyzes how "average" or predictable your text is using a language model. It
             works by comparing your writing to what a language model would expect to see next.
         </p>
         <p class="text-base leading-relaxed text-gray-500 dark:text-gray-400 mt-4">
-            The analysis shows:
+            Perplexity measures how "surprised" a language model is by your text. Think of it as:
+            for each word, how many reasonable options did the model consider before seeing what you
+            actually wrote? A perplexity of 10 means the model was roughly as uncertain as choosing
+            between 10 equally likely words. Lower perplexity = more predictable text = more "on
+            distribution" = more slop.
         </p>
-        <ul class="list-disc pl-5 mt-2 text-base leading-relaxed text-gray-500 dark:text-gray-400">
+        <!-- <p class="text-base leading-relaxed text-gray-500 dark:text-gray-400 mt-4">
+            The analysis shows:
+        </p> -->
+        <!-- <ul class="list-disc pl-5 mt-2 text-base leading-relaxed text-gray-500 dark:text-gray-400">
             <li>Perplexity score: Lower means more predictable/average text</li>
             <li>
                 Token-by-token analysis: Shows which parts of your text are more or less expected
             </li>
-            <li>Comparison with other submissions: See how your writing compares to others</li>
-        </ul>
+            <li>Comparison with other submissions: See how your thoughts compares to others</li>
+        </ul> -->
         <div
             class="flex items-center gap-2 mt-4 text-base leading-relaxed text-gray-500 dark:text-gray-400"
         >
             <span>
                 Weekend project by <a href="https://www.joelsimon.net" class="underline">Joel</a>
             </span>
-            <a
+            <!-- <a
                 href="https://github.com/joel-simon/am-i-slop"
                 target="_blank"
                 rel="noopener"
                 class="ml-1"
             >
                 <IconSolid name="GithubSolid" size="md" icon={Icons.GithubSolid} />
-            </a>
+            </a> -->
         </div>
         <!-- <p class="text-base leading-relaxed text-gray-500 dark:text-gray-400 mt-4">
             Try different writing styles and see how they affect your score!
