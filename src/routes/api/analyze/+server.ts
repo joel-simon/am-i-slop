@@ -81,23 +81,28 @@ export const POST: RequestHandler = async ({ request }) => {
         const perplexity = result.output.total_perplexity;
         const allTokens = result.output.by_token;
 
-        // Filter tokens to only include the answer part (after "a:")
-        // Build up the text from tokens to find where the answer starts
-        const questionPrefix = `q:${getQuestionText(questionId)} a:`;
-        let accumulatedText = '';
+        // Filter tokens to only include the answer part (after " a:")
+        // Strategy: Build full text, find where " a:" ends, then map back to token index
+        const answerMarker = ' a:';
+        const fullText = allTokens.map((t: { token: string }) => t.token).join('');
+        const markerIndex = fullText.indexOf(answerMarker);
+
         let answerStartIndex = 0;
 
-        for (let i = 0; i < allTokens.length; i++) {
-            const prevLength = accumulatedText.length;
-            accumulatedText += allTokens[i].token;
+        if (markerIndex !== -1) {
+            const answerStartChar = markerIndex + answerMarker.length;
 
-            // Check if we've just passed the "a:" marker
-            if (
-                prevLength < questionPrefix.length &&
-                accumulatedText.length >= questionPrefix.length
-            ) {
-                answerStartIndex = i + 1; // Start from next token
-                break;
+            // Walk through tokens to find which one contains the answer start
+            let charCount = 0;
+            for (let i = 0; i < allTokens.length; i++) {
+                const tokenEnd = charCount + allTokens[i].token.length;
+
+                if (tokenEnd > answerStartChar) {
+                    // This token contains or starts after the answer marker
+                    answerStartIndex = i;
+                    break;
+                }
+                charCount = tokenEnd;
             }
         }
 
@@ -105,7 +110,11 @@ export const POST: RequestHandler = async ({ request }) => {
         const byToken = allTokens.slice(answerStartIndex);
 
         console.log(
-            `Total tokens: ${allTokens.length}, Question tokens: ${answerStartIndex}, Answer tokens: ${byToken.length}`
+            `Answer marker at char ${markerIndex}, answer starts at token ${answerStartIndex}, total answer tokens: ${byToken.length}`
+        );
+        console.log(
+            `Answer tokens:`,
+            byToken.map((t: { token: string }) => t.token)
         );
 
         // Store submission in database (use sanitized text)

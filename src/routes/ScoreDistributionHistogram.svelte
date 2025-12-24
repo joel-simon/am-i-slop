@@ -179,8 +179,8 @@
                         class="bar w-full rounded-t transition-all duration-300 ease-in-out"
                         style="height: {(bucket.count / maxCount()) *
                             156}px; background-color: {bucket.userInBucket
-                            ? '#3B82F6'
-                            : '#D1D5DB'};"
+                            ? '#bada55'
+                            : '#3d4451'};"
                         title={`Range: ${bucket.bucket}
 Count: ${bucket.count}${bucket.userInBucket ? '\n(Your score is in this range)' : ''}`}
                     ></div>
@@ -209,8 +209,50 @@ Count: ${bucket.count}${bucket.userInBucket ? '\n(Your score is in this range)' 
 </div>
 
 <style>
+    /* Terminal theme styling */
+    .score-distribution-histogram {
+        background: #181c1f !important;
+        border: 2px solid #2d332b !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+
+    h3 {
+        color: #bada55 !important;
+        text-shadow:
+            0 0 2px #bada55,
+            0 0 4px #222;
+    }
+
+    .text-gray-500,
+    .text-gray-600,
+    .text-gray-700 {
+        color: #8a8a8a !important;
+    }
+
+    .text-red-500 {
+        color: #ff6b6b !important;
+    }
+
+    .text-blue-600 {
+        color: #bada55 !important;
+    }
+
+    .histogram {
+        border-bottom: 2px solid #2d332b !important;
+    }
+
+    .bar {
+        transition: all 0.3s ease-in-out;
+    }
+
     .bar:hover {
         opacity: 0.8;
+        filter: brightness(1.2);
     }
-    /* Additional styles can be added here if needed */
+
+    .text-xs {
+        color: #8a8a8a !important;
+        font-size: 0.7rem !important;
+    }
 </style>

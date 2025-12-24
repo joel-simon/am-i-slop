@@ -10,6 +10,7 @@
     import * as Icons from 'flowbite-svelte-icons';
     import { questions } from '$lib/questions';
     import { validateText, getValidationError } from '$lib/utils/textFilter';
+    import DistributionPreview from './DistributionPreview.svelte';
 
     // --- Component State ---
     let inputText = '';
@@ -38,6 +39,41 @@
           ? 'text-yellow-500'
           : 'text-green-500';
 
+    // Distribution data cache (per question)
+    let distributionCache: Record<number, any> = {};
+    let currentDistribution: any = null;
+    let loadingDistribution = false;
+
+    // Load distribution data for a question
+    async function loadDistribution(questionId: number) {
+        // Check cache first
+        if (distributionCache[questionId]) {
+            console.log('Using cached distribution for question', questionId);
+            currentDistribution = distributionCache[questionId];
+            return;
+        }
+
+        loadingDistribution = true;
+        try {
+            const response = await fetch(`/api/distribution/${questionId}`);
+            if (!response.ok) {
+                throw new Error('Failed to load distribution');
+            }
+            const data = await response.json();
+
+            console.log('Loaded distribution for question', questionId, data);
+
+            // Cache it
+            distributionCache[questionId] = data;
+            currentDistribution = data;
+        } catch (err) {
+            console.error('Error loading distribution:', err);
+            currentDistribution = null;
+        } finally {
+            loadingDistribution = false;
+        }
+    }
+
     // Function to change question
     function changeQuestion(direction: 'prev' | 'next') {
         if (direction === 'prev' && currentQuestionIndex > 0) {
@@ -51,6 +87,9 @@
         analysisResults = null;
         progressiveTokensArray = [];
         progressiveResultsArray = [];
+
+        // Load distribution for new question
+        loadDistribution(questions[currentQuestionIndex].id);
     }
 
     // For progressive updates to ScaledTextView
@@ -98,6 +137,9 @@
         //     setErrorMessageExternal,
         //     onTokenProcessedExternal
         // );
+
+        // Load distribution for initial question
+        loadDistribution(questions[currentQuestionIndex].id);
     });
 
     // Pick a color based on how "expected" a log-probability is
@@ -167,28 +209,25 @@
             updateProgressExternal(0.6, 'Processing results...');
 
             // Convert RunPod response to the format expected by the UI
-            // First token is shown without styling, rest are in results with styling
-            const allTokens = data.by_token.map((t: any) => t.token);
-            const tokens = [allTokens[0]]; // First token goes in tokens array
-            const results = allTokens.slice(1).map((token: string, index: number) => {
-                const tokenData = data.by_token[index + 1]; // +1 because we skipped first
+            // data.by_token already contains only answer tokens (filtered server-side)
+            const results = data.by_token.map((tokenData: any, index: number) => {
                 return {
-                    token: token,
-                    tokenId: index + 1,
+                    token: tokenData.token,
+                    tokenId: index,
                     logProbability: Math.log(tokenData.probability),
                     probability: tokenData.probability,
                 };
             });
 
             analysisResults = {
-                tokens: allTokens, // Store all tokens for reference
+                tokens: data.by_token.map((t: any) => t.token), // Store all tokens for reference
                 results,
                 averageLogProb: Math.log(1 / data.perplexity), // Approximate from perplexity
                 perplexity: data.perplexity,
             };
 
             // Animate the progressive display (fake animation since we have all data)
-            animateProgressiveDisplay(tokens, results);
+            animateProgressiveDisplay(results);
 
             updateProgressExternal(1, 'Analysis complete!');
             statusText = `Analysis complete! Rank: ${data.placement.rank}/${data.placement.total} (${data.placement.percentile.toFixed(1)}th percentile)`;
@@ -202,11 +241,11 @@
     }
 
     // Animate the progressive display of tokens
-    function animateProgressiveDisplay(tokens: string[], results: any[]) {
-        progressiveTokensArray = [tokens[0]]; // Start with first token
+    function animateProgressiveDisplay(results: any[]) {
+        progressiveTokensArray = [];
         progressiveResultsArray = [];
 
-        // Animate subsequent tokens
+        // Animate all tokens
         let currentIndex = 0;
         const intervalMs = Math.min(100, 3000 / results.length); // Faster for long texts
 
@@ -381,6 +420,15 @@
             </button>
         </div>
     </div>
+
+    <!-- Distribution Preview (Before Submission) -->
+    {#if loadingDistribution && !analysisResults && !loading}
+        <div class="my-6 p-4 bg-gray-50 border border-gray-200 rounded-md">
+            <p class="text-sm text-gray-600">Loading distribution...</p>
+        </div>
+    {:else if currentDistribution && !analysisResults && !loading}
+        <DistributionPreview distribution={currentDistribution} />
+    {/if}
 
     <!-- Loading/Status Indicator -->
     {#if loading || statusText !== 'Ready to analyze text.'}
@@ -630,5 +678,15 @@
         background: #bada55 !important;
         color: #23272e !important;
         transform: scale(1.1);
+    }
+
+    /* Histogram bars - terminal theme */
+    .bg-blue-500 {
+        background: #bada55 !important;
+    }
+
+    .bg-blue-500:hover,
+    .hover\:bg-blue-600:hover {
+        background: #c7f774 !important;
     }
 </style>

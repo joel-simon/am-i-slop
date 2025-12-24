@@ -11,18 +11,16 @@
 
 <!-- Scaled & Colored Text Visualization -->
 <div class="mt-8 pt-6 border-t border-gray-200">
-    <!-- <h3 class="text-lg font-semibold text-gray-800 mb-4">
-    Scaled & Colored Text View
-  </h3> -->
+    <h3 class="text-lg font-semibold text-gray-800 mb-4">By Token Predictability</h3>
 
-    {#if !tokens || tokens.length === 0}
+    {#if results.length === 0 && tokens.length === 0}
         <p class="text-sm text-gray-500 px-1">No tokens to display.</p>
     {:else}
         <div
             class="p-4 border rounded-md bg-gray-50 min-h-[5em]"
             style="white-space: pre-wrap; line-height: 2.5;"
         >
-            <!-- Display the first token with a neutral style -->
+            <!-- Display the first token with a neutral style if tokens array is used -->
             {#if tokens.length > 0}
                 <span
                     style="font-size: 1em; color: #333; vertical-align: baseline; display: inline;"
@@ -31,7 +29,7 @@
                     {formatDisplayText(tokens[0])}
                 </span>
             {/if}
-            <!-- Display subsequent tokens with dynamic styles -->
+            <!-- Display all tokens with dynamic styles from results array -->
             {#each results as resultItem, i (resultItem.tokenId + '-' + i + '-result')}
                 {@const logProb = resultItem.logProbability}
                 {@const tokenText = resultItem.token}
