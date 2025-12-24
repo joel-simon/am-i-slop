@@ -165,6 +165,7 @@ export const POST: RequestHandler = async ({ request }) => {
             },
             histogram,
             submission_id: submission.id,
+            text_hash: submission.text_hash,
         });
     } catch (error) {
         console.error('Error during analysis:', error);

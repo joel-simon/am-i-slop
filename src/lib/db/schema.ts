@@ -87,3 +87,32 @@ export async function getSimilarPerplexitySubmissions(
 
     return getSubmissionsInRange(questionId, minPerplexity, maxPerplexity);
 }
+
+// Get a submission with all related data by text hash
+export async function getSubmissionWithDataByHash(textHash: string): Promise<{
+    submission: TextSubmission;
+    allSubmissions: TextSubmission[];
+    rank: number;
+    percentile: number;
+    slopPercentile: number;
+} | null> {
+    const submission = await getSubmissionByHash(textHash);
+    if (!submission) return null;
+
+    const allSubmissions = await getSubmissionsForQuestion(submission.question_id);
+
+    // Calculate rank and percentile
+    const sortedByPerplexity = [...allSubmissions].sort((a, b) => a.perplexity - b.perplexity);
+    const rank = sortedByPerplexity.findIndex((s) => s.id === submission.id) + 1;
+    const percentile = (rank / allSubmissions.length) * 100;
+    // Slop percentile: lower perplexity = more slop = higher slop percentile
+    const slopPercentile = 100 - percentile;
+
+    return {
+        submission,
+        allSubmissions,
+        rank,
+        percentile,
+        slopPercentile,
+    };
+}

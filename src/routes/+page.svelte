@@ -1,27 +1,30 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { type AnalysisResults, type AnalysisResultItem } from '$lib/SlopClassifier';
-    import ScaledTextView from '$lib/components/ScaledTextView.svelte';
-    import ScoreDistributionHistogram from '$lib/components/ScoreDistributionHistogram.svelte';
-    import NeighboringSubmissions from '$lib/components/NeighboringSubmissions.svelte';
-    import { Button, Modal } from 'flowbite-svelte';
-    import { IconSolid } from 'flowbite-svelte-icons';
-    import * as Icons from 'flowbite-svelte-icons';
-    import { questions } from '$lib/questions';
+    import { goto } from '$app/navigation';
+    import { Modal } from 'flowbite-svelte';
+    import { questions, getQuestionText } from '$lib/questions';
     import { validateText, getValidationError } from '$lib/utils/textFilter';
+    import {
+        getStoredSubmissions,
+        saveSubmission,
+        type StoredSubmission,
+    } from '$lib/utils/localStorage';
+    import { getSlopEmoji } from '$lib/utils/slopMessages';
     import DistributionPreview from '../lib/components/DistributionPreview.svelte';
 
     // --- Component State ---
     let inputText = '';
-    let selectedModel = 'gpt2'; // Not used anymore - always using RunPod with gpt2
     let loading = false;
     let progress = 0;
     let statusText = 'Ready to analyze text.';
-    let analysisResults: AnalysisResults | null = null;
     let errorMessage: string | null = null;
     let infoModal = false;
 
     let currentQuestionIndex = 0;
+
+    // Past submissions
+    let pastSubmissions: StoredSubmission[] = [];
+    let showPastSubmissions = false;
 
     // Character count limits
     const MIN_CHARS = 16;
@@ -47,7 +50,6 @@
     async function loadDistribution(questionId: number) {
         // Check cache first
         if (distributionCache[questionId]) {
-            console.log('Using cached distribution for question', questionId);
             currentDistribution = distributionCache[questionId];
             return;
         }
@@ -59,8 +61,6 @@
                 throw new Error('Failed to load distribution');
             }
             const data = await response.json();
-
-            console.log('Loaded distribution for question', questionId, data);
 
             // Cache it
             distributionCache[questionId] = data;
@@ -82,78 +82,25 @@
         }
         // Clear input when changing questions
         inputText = '';
-        // Clear any previous analysis
-        analysisResults = null;
-        progressiveTokensArray = [];
-        progressiveResultsArray = [];
+        errorMessage = null;
 
         // Load distribution for new question
         loadDistribution(questions[currentQuestionIndex].id);
     }
 
-    // For progressive updates to ScaledTextView
-    let progressiveTokensArray: string[] = [];
-    let progressiveResultsArray: AnalysisResultItem[] = [];
-
     // Update loading bar & status
-    function updateProgressExternal(p: number, text: string) {
+    function updateProgress(p: number, text: string) {
         progress = p;
         statusText = text;
     }
 
-    function setErrorMessageExternal(message: string | null) {
-        errorMessage = message;
-    }
-
-    // Callback for progressively processed tokens/results
-    function onTokenProcessedExternal(item: AnalysisResultItem | string) {
-        if (typeof item === 'string') {
-            // This is the first token
-            progressiveTokensArray = [item];
-            progressiveResultsArray = []; // Reset results when a new first token comes in
-        } else {
-            // This is an AnalysisResultItem for subsequent tokens
-            // Ensure the first token is in progressiveTokensArray if not already set
-            if (
-                progressiveTokensArray.length === 0 &&
-                analysisResults &&
-                analysisResults.tokens.length > 0
-            ) {
-                progressiveTokensArray = [analysisResults.tokens[0]];
-            }
-            progressiveResultsArray = [...progressiveResultsArray, item];
-        }
-    }
-
     onMount(() => {
-        // Note: SlopAnalyzer is no longer used - we use RunPod API instead
-        // Keeping the code around for reference
-        // slopAnalyzer = new SlopAnalyzer(
-        //     updateProgressExternal,
-        //     setErrorMessageExternal,
-        //     onTokenProcessedExternal
-        // );
-
         // Load distribution for initial question
         loadDistribution(questions[currentQuestionIndex].id);
-    });
 
-    // Pick a color based on how "expected" a log-probability is
-    function getProbabilityColor(logProb: number): string {
-        if (!isFinite(logProb)) return 'rgb(150,150,150)';
-        const norm = Math.max(0, Math.min(1, (logProb + 15) / 15));
-        if (norm < 0.5) {
-            const t = norm * 2;
-            return `rgb(255,${Math.floor(107 + t * (230 - 107))},${Math.floor(
-                107 + t * (109 - 107)
-            )})`;
-        } else {
-            const t = (norm - 0.5) * 2;
-            return `rgb(${Math.floor(255 - t * (255 - 78))},${Math.floor(
-                230 - t * (230 - 205)
-            )},${Math.floor(109 + t * (196 - 109))})`;
-        }
-    }
+        // Load past submissions
+        pastSubmissions = getStoredSubmissions();
+    });
 
     // When the user clicks "Analyze"
     async function analyzeText() {
@@ -171,17 +118,14 @@
         }
 
         loading = true;
-        analysisResults = null;
-        progressiveTokensArray = []; // Clear previous progressive results
-        progressiveResultsArray = []; // Clear previous progressive results
         errorMessage = null;
-        updateProgressExternal(0, 'Loading...');
+        updateProgress(0, 'Submitting...');
 
         try {
             // Use sanitized text (already lowercase from validation)
             const sanitizedText = validation.sanitized.toLowerCase();
 
-            // Call the new analyze endpoint
+            // Call the analyze endpoint
             const response = await fetch('/api/analyze', {
                 method: 'POST',
                 headers: {
@@ -193,7 +137,7 @@
                 }),
             });
 
-            updateProgressExternal(0.3, 'Calculating perplexity on GPU...');
+            updateProgress(0.5, 'Calculating perplexity on GPU...');
 
             if (!response.ok) {
                 const errorData = await response.json();
@@ -202,87 +146,37 @@
 
             const data = await response.json();
 
-            updateProgressExternal(0.6, 'Processing results...');
+            updateProgress(0.9, 'Saving results...');
 
-            // Convert RunPod response to the format expected by the UI
-            // data.by_token already contains only answer tokens (filtered server-side)
-            const results = data.by_token.map((tokenData: any, index: number) => {
-                return {
-                    token: tokenData.token,
-                    tokenId: index,
-                    logProbability: Math.log(tokenData.probability),
-                    probability: tokenData.probability,
-                };
+            // Calculate slop percentile (inverted)
+            const slopPercentile = 100 - data.placement.percentile;
+
+            // Save to localStorage
+            saveSubmission({
+                text_hash: data.text_hash,
+                text: sanitizedText,
+                perplexity: data.perplexity,
+                question_id: questions[currentQuestionIndex].id,
+                question_text: questions[currentQuestionIndex].text,
+                slopPercentile,
+                created_at: new Date().toISOString(),
             });
 
-            analysisResults = {
-                tokens: data.by_token.map((t: any) => t.token), // Store all tokens for reference
-                results,
-                averageLogProb: Math.log(1 / data.perplexity), // Approximate from perplexity
-                perplexity: data.perplexity,
-            };
+            updateProgress(1, 'Redirecting to results...');
 
-            // Animate the progressive display (fake animation since we have all data)
-            animateProgressiveDisplay(results);
-
-            updateProgressExternal(1, 'Analysis complete!');
-            statusText = `Analysis complete! Rank: ${data.placement.rank}/${data.placement.total} (${data.placement.percentile.toFixed(1)}th percentile)`;
+            // Redirect to the results page
+            await goto(`/submissions/${data.text_hash}`);
         } catch (err: any) {
             console.error('Error during analysis:', err);
             errorMessage = err.message || 'An unexpected error occurred.';
             statusText = 'Analysis failed.';
-        } finally {
             loading = false;
         }
-    }
-
-    // Animate the progressive display of tokens
-    function animateProgressiveDisplay(results: any[]) {
-        progressiveTokensArray = [];
-        progressiveResultsArray = [];
-
-        // Animate all tokens
-        let currentIndex = 0;
-        const intervalMs = Math.min(100, 3000 / results.length); // Faster for long texts
-
-        const interval = setInterval(() => {
-            if (currentIndex < results.length) {
-                progressiveResultsArray = [...progressiveResultsArray, results[currentIndex]];
-                currentIndex++;
-            } else {
-                clearInterval(interval);
-            }
-        }, intervalMs);
-    }
-
-    // Make spaces visible
-    const formatToken = (tok: string) => tok.replace(/ /g, '␣');
-
-    function getProbabilitySize(logProb: number): string {
-        const minSizeEm = 0.7; // For very predictable tokens
-        const maxSizeEm = 2.2; // For very unpredictable tokens
-
-        if (!isFinite(logProb)) {
-            // Typically -Infinity for highly unexpected tokens
-            return `${maxSizeEm.toFixed(2)}em`;
-        }
-
-        // Normalize logProb: (logProb + 15) / 15.
-        // norm = 0 (e.g., logProb <= -15) is "unexpected"
-        // norm = 1 (e.g., logProb >= 0) is "very expected"
-        const norm = Math.max(0, Math.min(1, (logProb + 15) / 15));
-
-        // Inverse relationship: lower norm (more unexpected) -> larger size
-        // If norm = 0 (unexpected), size = maxSizeEm.
-        // If norm = 1 (expected), size = minSizeEm.
-        const size = maxSizeEm - norm * (maxSizeEm - minSizeEm);
-        return `${size.toFixed(2)}em`;
     }
 </script>
 
 <svelte:head>
     <title>Are you Slop?</title>
-    <!-- TensorFlow.js and Transformers.js are loaded via imports -->
 </svelte:head>
 
 <div class="max-w-3xl mx-auto p-4 md:p-8 my-2 font-terminal">
@@ -310,34 +204,13 @@
             between 10 equally likely words. Lower perplexity = more predictable text = more "on
             distribution" = more slop.
         </p>
-        <!-- <p class="text-base leading-relaxed text-gray-500 dark:text-gray-400 mt-4">
-            The analysis shows:
-        </p> -->
-        <!-- <ul class="list-disc pl-5 mt-2 text-base leading-relaxed text-gray-500 dark:text-gray-400">
-            <li>Perplexity score: Lower means more predictable/average text</li>
-            <li>
-                Token-by-token analysis: Shows which parts of your text are more or less expected
-            </li>
-            <li>Comparison with other submissions: See how your thoughts compares to others</li>
-        </ul> -->
         <div
             class="flex items-center gap-2 mt-4 text-base leading-relaxed text-gray-500 dark:text-gray-400"
         >
             <span>
                 Weekend project by <a href="https://www.joelsimon.net" class="underline">Joel</a>
             </span>
-            <!-- <a
-                href="https://github.com/joel-simon/am-i-slop"
-                target="_blank"
-                rel="noopener"
-                class="ml-1"
-            >
-                <IconSolid name="GithubSolid" size="md" icon={Icons.GithubSolid} />
-            </a> -->
         </div>
-        <!-- <p class="text-base leading-relaxed text-gray-500 dark:text-gray-400 mt-4">
-            Try different writing styles and see how they affect your score!
-        </p> -->
     </Modal>
 
     <!-- Input Section -->
@@ -347,7 +220,7 @@
                 >{questions[currentQuestionIndex].text}</label
             >
 
-            <!-- Question Navigation (Below on mobile, inline on desktop) -->
+            <!-- Question Navigation -->
             <div class="flex gap-2 mb-3">
                 <button
                     on:click={() => changeQuestion('prev')}
@@ -428,26 +301,15 @@
         </div>
     </div>
 
-    <!-- Distribution Preview (Before Submission) -->
-    {#if loadingDistribution && !analysisResults && !loading}
-        <div class="my-6 p-4 bg-gray-50 border border-gray-200 rounded-md">
-            <p class="text-sm text-gray-600">Loading distribution...</p>
-        </div>
-    {:else if currentDistribution && !analysisResults && !loading}
-        <DistributionPreview distribution={currentDistribution} />
-    {/if}
-
     <!-- Loading/Status Indicator -->
-    {#if loading || statusText !== 'Ready to analyze text.'}
+    {#if loading}
         <div class="my-6 text-center">
-            {#if loading}
-                <div class="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-                    <div
-                        class="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-                        style="width: {progress * 100}%"
-                    ></div>
-                </div>
-            {/if}
+            <div class="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+                <div
+                    class="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                    style="width: {progress * 100}%"
+                ></div>
+            </div>
             <p class="text-sm text-gray-600">{statusText}</p>
         </div>
     {/if}
@@ -459,47 +321,50 @@
         </div>
     {/if}
 
-    <!-- Results Section -->
-    {#if analysisResults && !loading}
-        <!-- Summary -->
-        <div class="bg-blue-50 p-4 rounded-md mb-6 border border-blue-200 mt-8">
-            <h3 class="text-lg font-semibold text-gray-800 mb-2">Analysis Summary</h3>
-            <p class="text-gray-700">
-                Overall Perplexity Score:
-                <strong class="text-blue-700">
-                    {isFinite(analysisResults.perplexity)
-                        ? analysisResults.perplexity.toFixed(2)
-                        : 'Infinity'}
-                </strong>
-            </p>
-            <p class="text-sm text-gray-600 mt-1">
-                (Lower perplexity indicates more predictable/average text based on the model.)
-            </p>
+    <!-- Distribution Preview -->
+    {#if loadingDistribution && !loading}
+        <div class="my-6 p-4 bg-gray-50 border border-gray-200 rounded-md">
+            <p class="text-sm text-gray-600">Loading distribution...</p>
         </div>
-
-        <!-- <TokenTableAnalysis
-      results={analysisResults.results} 
-      tokens={analysisResults.tokens}
-      {formatToken} 
-      {getProbabilityColor} 
-    /> -->
-        <ScaledTextView
-            tokens={progressiveTokensArray}
-            results={progressiveResultsArray}
-            {getProbabilityColor}
-            {getProbabilitySize}
+    {:else if currentDistribution && !loading}
+        <DistributionPreview
+            distribution={currentDistribution}
+            questionId={questions[currentQuestionIndex].id}
         />
-        {#if analysisResults && isFinite(analysisResults.perplexity)}
-            <ScoreDistributionHistogram
-                userScore={analysisResults.perplexity}
-                questionId={questions[currentQuestionIndex].id}
-            />
-            <NeighboringSubmissions
-                userScore={analysisResults.perplexity}
-                questionId={questions[currentQuestionIndex].id}
-                n={2}
-            />
-        {/if}
+    {/if}
+
+    <!-- Past Submissions -->
+    {#if pastSubmissions.length > 0}
+        <div class="past-submissions mt-8">
+            <button
+                class="past-submissions-toggle"
+                on:click={() => (showPastSubmissions = !showPastSubmissions)}
+            >
+                <span>Your Past Submissions ({pastSubmissions.length})</span>
+                <span class="toggle-icon">{showPastSubmissions ? '▼' : '▶'}</span>
+            </button>
+
+            {#if showPastSubmissions}
+                <div class="past-submissions-list">
+                    {#each pastSubmissions as sub}
+                        <a href="/submissions/{sub.text_hash}" class="past-submission-card">
+                            <div class="past-submission-header">
+                                <span class="past-submission-emoji"
+                                    >{getSlopEmoji(sub.slopPercentile)}</span
+                                >
+                                <span class="past-submission-score text-sm"
+                                    >{sub.perplexity.toFixed(1)}</span
+                                >
+                            </div>
+                            <p class="past-submission-text text-sm">
+                                {sub.text.slice(0, 60)}{sub.text.length > 60 ? '...' : ''}
+                            </p>
+                            <p class="past-submission-question text-xs">{sub.question_text}</p>
+                        </a>
+                    {/each}
+                </div>
+            {/if}
+        </div>
     {/if}
 </div>
 
@@ -554,8 +419,6 @@
     }
 
     label,
-    select,
-    option,
     .text-gray-700,
     .text-gray-800,
     .text-gray-600 {
@@ -563,9 +426,7 @@
         font-family: inherit;
     }
 
-    textarea,
-    select,
-    input {
+    textarea {
         background: #23272e !important;
         color: #c7f774 !important;
         border: 1.5px solid #2d332b !important;
@@ -574,14 +435,12 @@
         box-shadow: none !important;
     }
 
-    textarea:focus,
-    select:focus,
-    input:focus {
+    textarea:focus {
         outline: 2px solid #bada55 !important;
         background: #23272e !important;
     }
 
-    button:not(.info-button-fixed) {
+    button:not(.info-button-fixed):not(.past-submissions-toggle) {
         background: #23272e !important;
         color: #bada55 !important;
         border: 2px solid #bada55 !important;
@@ -593,7 +452,7 @@
             background 0.2s,
             color 0.2s;
     }
-    button:not(.info-button-fixed):hover {
+    button:not(.info-button-fixed):not(.past-submissions-toggle):hover {
         background: #bada55 !important;
         color: #23272e !important;
     }
@@ -687,13 +546,83 @@
         transform: scale(1.1);
     }
 
-    /* Histogram bars - terminal theme */
-    .bg-blue-500 {
-        background: #bada55 !important;
+    /* Past Submissions */
+    .past-submissions {
+        border-top: 1px solid #2d332b;
+        padding-top: 1rem;
     }
 
-    .bg-blue-500:hover,
-    .hover\:bg-blue-600:hover {
-        background: #c7f774 !important;
+    .past-submissions-toggle {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        background: #23272e;
+        border: 1px solid #2d332b;
+        color: #bada55;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .past-submissions-toggle:hover {
+        background: #2a2f36;
+        border-color: #bada55;
+    }
+
+    .toggle-icon {
+        font-size: 0.75rem;
+    }
+
+    .past-submissions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .past-submission-card {
+        display: block;
+        padding: 0.75rem 1rem;
+        background: #23272e;
+        border: 1px solid #2d332b;
+        border-left: 3px solid #3d4451;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .past-submission-card:hover {
+        border-left-color: #bada55;
+        transform: translateX(4px);
+    }
+
+    .past-submission-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.25rem;
+    }
+
+    .past-submission-emoji {
+        font-size: 1.25rem;
+    }
+
+    .past-submission-score {
+        color: #bada55;
+        font-weight: 700;
+        font-family: 'Terminal Grotesque', 'Fira Mono', monospace;
+    }
+
+    .past-submission-text {
+        color: #c7f774;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .past-submission-question {
+        color: #666;
+        margin-top: 0.25rem;
     }
 </style>

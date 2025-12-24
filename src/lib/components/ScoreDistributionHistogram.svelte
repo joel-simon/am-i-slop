@@ -1,9 +1,11 @@
 <script lang="ts">
     import { onMount, afterUpdate } from 'svelte';
+    import { getSlopMessage } from '$lib/utils/slopMessages';
 
     // --- Props ---
     export let userScore: number | null = null;
     export let questionId: number = 0; // Add questionId prop
+    export let showVerdict: boolean = true; // Whether to show the slop verdict section
 
     // --- Reactive State ---
     let histogramData: {
@@ -14,6 +16,7 @@
         max: number;
     }[] = [];
     let percentile: number | null = null;
+    let slopPercentile: number | null = null; // Inverted: how slop you are
     let chartRendered = false; // To help with re-rendering on data change
     let internalAllScores: number[] = []; // Explicit internal state for scores
     let loading = false;
@@ -29,6 +32,8 @@
     const NUM_BUCKETS = 10;
     const MIN_SCORE = 0; // Assuming perplexity scores are non-negative
     const MAX_SCORE = 200; // Adjust based on expected score range, make it dynamic later
+
+    $: slopMessage = slopPercentile !== null ? getSlopMessage(slopPercentile) : null;
 
     // Load scores from the database
     async function loadScores() {
@@ -71,6 +76,7 @@
         if (userScore === null || !isFinite(userScore) || internalAllScores.length === 0) {
             histogramData = [];
             percentile = null;
+            slopPercentile = null;
             chartRendered = false; // Ensure "Calculating..." or similar is shown if we bail early
             return;
         }
@@ -79,6 +85,7 @@
         if (validScores.length === 0) {
             histogramData = [];
             percentile = null;
+            slopPercentile = null;
             chartRendered = false; // Ensure "Calculating..." or similar is shown
             return;
         }
@@ -148,12 +155,16 @@
             max: b.max,
         }));
 
-        // Calculate percentile
+        // Calculate percentile (how many scores are LOWER than yours)
         const scoresLessThanUser = validScores.filter((s) => s < userScore).length;
         if (validScores.length > 0) {
             percentile = (scoresLessThanUser / validScores.length) * 100;
+            // Invert for slopiness: lower perplexity = more slop = higher slop percentile
+            // If 73% have lower scores, you're LESS slop than 73%, so slopiness = 27%
+            slopPercentile = 100 - percentile;
         } else {
-            percentile = null; // Avoid division by zero if validScores somehow became empty
+            percentile = null;
+            slopPercentile = null;
         }
 
         chartRendered = true;
@@ -244,15 +255,39 @@
                 </button>
             {/each}
         </div>
-        {#if percentile !== null && isFinite(userScore)}
-            <p class="percentile-text text-sm">
-                Your score of <strong>{userScore.toFixed(2)}</strong>
-                is in the <strong>{percentile.toFixed(0)}th percentile</strong>.
-            </p>
-            <p class="percentile-subtext text-xs">
-                (This means your score is higher than approximately {percentile.toFixed(0)}% of
-                other scores in this sample distribution.)
-            </p>
+        <span
+            class="center-label"
+            style="display: flex; align-items: center; justify-content: center; gap: 1.5rem;"
+        >
+            <span style="display: flex; align-items: center; gap: 0.4em;">
+                <span style="font-size: 1.2em;">←</span>
+                <span>More Slop</span>
+            </span>
+            <span style="opacity: 0.6; letter-spacing: 0.05em; font-size: 0.97em; margin: 0 0.6em;"
+                >|</span
+            >
+            <span style="display: flex; align-items: center; gap: 0.4em;">
+                <span>Less Slop</span>
+                <span style="font-size: 1.2em;">→</span>
+            </span>
+        </span>
+
+        {#if slopPercentile !== null && slopMessage && isFinite(userScore) && showVerdict}
+            <!-- Fun slop verdict -->
+            <div class="slop-verdict">
+                <div class="verdict-emoji">{slopMessage.emoji}</div>
+                <div class="verdict-content">
+                    <div class="verdict-title">{slopMessage.title}</div>
+                    <div class="verdict-subtitle text-sm">{slopMessage.subtitle}</div>
+                </div>
+            </div>
+
+            <div class="percentile-stats">
+                <p class="percentile-text text-sm">
+                    Perplexity: <strong>{userScore.toFixed(2)}</strong> — You are more slop than
+                    <strong>{slopPercentile.toFixed(0)}%</strong> of submissions.
+                </p>
+            </div>
         {/if}
 
         <!-- Bucket submissions panel -->
@@ -283,7 +318,6 @@
                         {#each bucketSubmissions as submission, idx}
                             <div class="submission-card">
                                 <div class="submission-header">
-                                    <!-- <span class="submission-index text-xs">#{idx + 1}</span> -->
                                     <span class="submission-score text-sm"
                                         >{submission.perplexity.toFixed(2)}</span
                                     >
@@ -389,18 +423,51 @@
         white-space: nowrap;
     }
 
+    /* Slop verdict section */
+    .slop-verdict {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: #1e2420;
+        border: 1px solid #2d332b;
+        margin-bottom: 1rem;
+    }
+
+    .verdict-emoji {
+        font-size: 2.5rem;
+        line-height: 1;
+    }
+
+    .verdict-content {
+        flex: 1;
+    }
+
+    .verdict-title {
+        color: #bada55;
+        font-weight: 700;
+        font-size: 1.125rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        text-shadow: 0 0 4px rgba(186, 218, 85, 0.4);
+    }
+
+    .verdict-subtitle {
+        color: #8a8a8a;
+        margin-top: 0.25rem;
+        font-style: italic;
+    }
+
+    .percentile-stats {
+        padding-bottom: 0.5rem;
+    }
+
     .percentile-text {
         color: #8a8a8a;
-        margin-top: 1rem;
     }
 
     .percentile-text strong {
         color: #bada55;
-    }
-
-    .percentile-subtext {
-        color: #666;
-        margin-top: 0.25rem;
     }
 
     /* Bucket submissions panel */
@@ -466,11 +533,6 @@
         justify-content: space-between;
         align-items: center;
         margin-bottom: 0.5rem;
-    }
-
-    .submission-index {
-        color: #666;
-        font-weight: 600;
     }
 
     .submission-score {
