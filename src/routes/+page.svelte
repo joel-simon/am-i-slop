@@ -23,6 +23,21 @@
 
     let currentQuestionIndex = 0;
 
+    // Character count limits
+    const MIN_CHARS = 16;
+    const MAX_CHARS = 256;
+
+    // Reactive character count
+    $: charCount = inputText.length;
+    $: charsRemaining = MAX_CHARS - charCount;
+    $: isUnderMin = charCount < MIN_CHARS;
+    $: isOverMax = charCount > MAX_CHARS;
+    $: charCountColor = isOverMax
+        ? 'text-red-500'
+        : isUnderMin
+          ? 'text-yellow-500'
+          : 'text-green-500';
+
     // Function to change question
     function changeQuestion(direction: 'prev' | 'next') {
         if (direction === 'prev' && currentQuestionIndex > 0) {
@@ -110,8 +125,8 @@
         }
 
         // Validate and sanitize text on client side
-        const validation = validateText(inputText.trim(), 500);
-        
+        const validation = await validateText(inputText.trim(), MIN_CHARS, MAX_CHARS);
+
         if (!validation.isValid) {
             errorMessage = getValidationError(validation) || 'Invalid input';
             return;
@@ -127,7 +142,7 @@
         try {
             // Use sanitized text (already lowercase from validation)
             const sanitizedText = validation.sanitized.toLowerCase();
-            
+
             // Call the new analyze endpoint
             const response = await fetch('/api/analyze', {
                 method: 'POST',
@@ -307,8 +322,27 @@
                 placeholder="Enter your answer..."
                 class="w-full h-40 p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 resize-y text-base"
                 disabled={loading}
+                maxlength={MAX_CHARS + 50}
                 autofocus
             ></textarea>
+
+            <!-- Character Counter -->
+            <div class="flex justify-between items-center mt-2 text-sm">
+                <div class={charCountColor}>
+                    {#if isOverMax}
+                        ⚠️ Too long! {charCount}/{MAX_CHARS} characters
+                    {:else if isUnderMin && charCount > 0}
+                        ⚠️ Too short. Need {MIN_CHARS - charCount} more characters (min {MIN_CHARS})
+                    {:else if charCount === 0}
+                        <span class="text-gray-500">Minimum {MIN_CHARS} characters required</span>
+                    {:else}
+                        ✓ {charCount}/{MAX_CHARS} characters
+                    {/if}
+                </div>
+                <div class="text-gray-500">
+                    {charsRemaining} remaining
+                </div>
+            </div>
         </div>
 
         <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -532,6 +566,19 @@
     .text-blue-700,
     .text-blue-600 {
         color: #bada55 !important;
+    }
+
+    /* Character counter colors */
+    .text-red-500 {
+        color: #ff6b6b !important;
+    }
+
+    .text-yellow-500 {
+        color: #ffd93d !important;
+    }
+
+    .text-green-500 {
+        color: #6bcf7f !important;
     }
 
     .text-center {

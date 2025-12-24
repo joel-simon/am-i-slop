@@ -31,14 +31,12 @@ export const POST: RequestHandler = async ({ request }) => {
         }
 
         // Server-side validation and sanitization (defense in depth)
-        const validation = validateText(text, 500);
-        
+        // Min 16 chars, Max 256 chars
+        const validation = await validateText(text, 16, 256);
+
         if (!validation.isValid) {
             console.warn(`Validation failed for text: ${validation.error}`);
-            return json(
-                { error: validation.error || 'Invalid input' },
-                { status: 400 }
-            );
+            return json({ error: validation.error || 'Invalid input' }, { status: 400 });
         }
 
         // Use sanitized text for all subsequent operations
@@ -53,12 +51,14 @@ export const POST: RequestHandler = async ({ request }) => {
             );
         }
 
-        console.log(`Analyzing text for question ${questionId}: "${sanitizedText.substring(0, 50)}..."`);
+        console.log(
+            `Analyzing text for question ${questionId}: "${sanitizedText.substring(0, 50)}..."`
+        );
 
         // Format as Q&A for better perplexity (model gets context from question)
         // Use sanitized text
         const formattedInput = `q:${getQuestionText(questionId)} a:${sanitizedText}`;
-        
+
         console.log(`Formatted input: "${formattedInput}"`);
 
         const result: any = await endpoint.runSync({

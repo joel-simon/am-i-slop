@@ -1,6 +1,35 @@
-import Filter from 'bad-words';
+// Use dynamic import for bad-words to avoid SSR issues
+let filter: any = null;
 
-const filter = new Filter();
+// Simple fallback profanity list
+const profanityList = ['fuck', 'shit', 'damn', 'ass', 'bitch', 'cunt', 'dick', 'piss'];
+
+async function getFilter() {
+    if (!filter) {
+        try {
+            const Filter = (await import('bad-words')).default;
+            filter = new Filter();
+        } catch (e) {
+            console.warn('bad-words package not available, using fallback');
+            // Fallback: manual check
+            filter = {
+                isProfane: (text: string) => {
+                    const lower = text.toLowerCase();
+                    return profanityList.some(word => lower.includes(word));
+                },
+                clean: (text: string) => {
+                    let cleaned = text;
+                    profanityList.forEach(word => {
+                        const regex = new RegExp(word, 'gi');
+                        cleaned = cleaned.replace(regex, '*'.repeat(word.length));
+                    });
+                    return cleaned;
+                }
+            };
+        }
+    }
+    return filter;
+}
 
 export interface ValidationResult {
     isValid: boolean;
@@ -39,7 +68,11 @@ export function sanitizeText(text: string): string {
  * Validate and filter text input
  * Returns validation result with sanitized text or error message
  */
-export function validateText(text: string, maxLength: number = 500): ValidationResult {
+export async function validateText(
+    text: string,
+    minLength: number = 16,
+    maxLength: number = 256
+): Promise<ValidationResult> {
     // First sanitize
     const sanitized = sanitizeText(text);
     
@@ -52,7 +85,16 @@ export function validateText(text: string, maxLength: number = 500): ValidationR
         };
     }
     
-    // Check length
+    // Check minimum length
+    if (sanitized.length < minLength) {
+        return {
+            isValid: false,
+            sanitized,
+            error: `Text is too short. Minimum ${minLength} characters required (currently ${sanitized.length}).`,
+        };
+    }
+    
+    // Check maximum length
     if (sanitized.length > maxLength) {
         return {
             isValid: false,
@@ -62,10 +104,11 @@ export function validateText(text: string, maxLength: number = 500): ValidationR
     }
     
     // Check for profanity
-    if (filter.isProfane(sanitized)) {
+    const filterInstance = await getFilter();
+    if (filterInstance.isProfane(sanitized)) {
         return {
             isValid: false,
-            sanitized: filter.clean(sanitized),
+            sanitized: filterInstance.clean(sanitized),
             error: 'Text contains inappropriate language. Please keep it clean!',
         };
     }
