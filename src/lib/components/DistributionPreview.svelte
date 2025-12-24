@@ -377,11 +377,11 @@
         transition: all 0.2s ease;
     }
 
-    .submission-card:hover {
+    /* .submission-card:hover {
         border-color: #3d4451;
         border-left-color: #bada55;
         transform: translateX(4px);
-    }
+    } */
 
     .submission-header {
         display: flex;

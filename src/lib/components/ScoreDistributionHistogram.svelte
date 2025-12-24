@@ -251,26 +251,24 @@
                         class:has-data={bucket.count > 0}
                         style="height: {(bucket.count / maxCount()) * 156}px"
                     ></div>
-                    <div class="bar-label text-xs">{bucket.bucket}</div>
                 </button>
             {/each}
         </div>
-        <span
-            class="center-label"
-            style="display: flex; align-items: center; justify-content: center; gap: 1.5rem;"
-        >
-            <span style="display: flex; align-items: center; gap: 0.4em;">
-                <span style="font-size: 1.2em;">←</span>
-                <span>More Slop</span>
+        <div class="histogram-labels">
+            <span>{histogramData[0]?.min.toFixed(0) ?? '0'}</span>
+            <span class="center-label">
+                <span class="slop-direction">
+                    <span class="arrow">←</span>
+                    <span>More Slop</span>
+                </span>
+                <span class="divider">|</span>
+                <span class="slop-direction">
+                    <span>Less Slop</span>
+                    <span class="arrow">→</span>
+                </span>
             </span>
-            <span style="opacity: 0.6; letter-spacing: 0.05em; font-size: 0.97em; margin: 0 0.6em;"
-                >|</span
-            >
-            <span style="display: flex; align-items: center; gap: 0.4em;">
-                <span>Less Slop</span>
-                <span style="font-size: 1.2em;">→</span>
-            </span>
-        </span>
+            <span>{histogramData[histogramData.length - 1]?.max.toFixed(0) ?? '200'}</span>
+        </div>
 
         {#if slopPercentile !== null && slopMessage && isFinite(userScore) && showVerdict}
             <!-- Fun slop verdict -->
@@ -341,6 +339,7 @@
         border-radius: 0;
         padding: 1rem;
         margin: 1.5rem 0;
+        overflow: hidden;
     }
 
     .section-title {
@@ -364,10 +363,10 @@
         display: flex;
         align-items: flex-end;
         gap: 2px;
-        height: 180px;
-        padding-bottom: 1.5rem;
+        height: 160px;
         border-bottom: 1px solid #2d332b;
-        margin-bottom: 1rem;
+        padding-bottom: 2px;
+        margin-bottom: 0.5rem;
     }
 
     .bar-container {
@@ -416,11 +415,45 @@
         box-shadow: 0 0 4px #bada55;
     }
 
-    .bar-label {
+    .histogram-labels {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.75rem;
         color: #8a8a8a;
-        margin-top: 0.5rem;
-        text-align: center;
-        white-space: nowrap;
+        margin-bottom: 1rem;
+    }
+
+    .center-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        font-size: 0.875rem;
+        color: #8a8a8a;
+    }
+
+    .slop-direction {
+        display: flex;
+        align-items: center;
+        gap: 0.4em;
+    }
+
+    .slop-direction .arrow {
+        font-size: 1.2em;
+    }
+
+    .center-label .divider {
+        opacity: 0.6;
+        letter-spacing: 0.05em;
+        font-size: 0.97em;
+    }
+
+    @media (max-width: 480px) {
+        .center-label {
+            font-size: 0.7rem;
+            gap: 0.5rem;
+        }
     }
 
     /* Slop verdict section */
@@ -522,11 +555,11 @@
         transition: all 0.2s ease;
     }
 
-    .submission-card:hover {
+    /* .submission-card:hover {
         border-color: #3d4451;
         border-left-color: #bada55;
         transform: translateX(4px);
-    }
+    } */
 
     .submission-header {
         display: flex;

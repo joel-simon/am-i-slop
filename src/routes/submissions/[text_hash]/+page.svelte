@@ -25,13 +25,13 @@
     <!-- Question -->
     <div class="question-section mb-6">
         <p class="question-label text-xs uppercase tracking-wider mb-1">Question</p>
-        <p class="question-text text-lg">{questionText}</p>
+        <p class="question-text text-md">{questionText}</p>
     </div>
 
     <!-- User's Answer -->
     <div class="answer-section mb-6">
-        <p class="answer-label text-xs uppercase tracking-wider mb-1">Your Answer</p>
-        <p class="answer-text text-base">{submission.text}</p>
+        <p class="answer-label text-md uppercase tracking-wider mb-1">Your Answer</p>
+        <p class="answer-text text-base text-lg">{submission.text}</p>
     </div>
 
     <!-- Slop Verdict -->
@@ -75,7 +75,7 @@
 
     <!-- Action Buttons -->
     <div class="mt-8 flex justify-center items-center gap-4">
-        <a href="/" class="submit-again-btn">Submit Another Answer</a>
+        <a href="/" class="submit-again-btn">Submit Another</a>
         <button
             class="share-btn"
             on:click={async () => {
