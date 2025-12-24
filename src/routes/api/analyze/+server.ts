@@ -40,11 +40,14 @@ export const POST: RequestHandler = async ({ request }) => {
 
         console.log(`Analyzing text for question ${questionId}: "${text.substring(0, 50)}..."`);
 
-        // Just analyze the answer text directly (no Q&A formatting)
-        // This way we get perplexity and tokens for exactly what the user typed
+        // Format as Q&A for better perplexity (model gets context from question)
+        const formattedInput = `q:${getQuestionText(questionId)} a:${text.toLowerCase()}`;
+
+        console.log(`Formatted input: "${formattedInput}"`);
+
         const result: any = await endpoint.runSync({
             input: {
-                text: text.toLowerCase(),
+                text: formattedInput,
             },
         });
 
@@ -60,7 +63,34 @@ export const POST: RequestHandler = async ({ request }) => {
         }
 
         const perplexity = result.output.total_perplexity;
-        const byToken = result.output.by_token;
+        const allTokens = result.output.by_token;
+
+        // Filter tokens to only include the answer part (after "a:")
+        // Build up the text from tokens to find where the answer starts
+        const questionPrefix = `q:${getQuestionText(questionId)} a:`;
+        let accumulatedText = '';
+        let answerStartIndex = 0;
+
+        for (let i = 0; i < allTokens.length; i++) {
+            const prevLength = accumulatedText.length;
+            accumulatedText += allTokens[i].token;
+
+            // Check if we've just passed the "a:" marker
+            if (
+                prevLength < questionPrefix.length &&
+                accumulatedText.length >= questionPrefix.length
+            ) {
+                answerStartIndex = i + 1; // Start from next token
+                break;
+            }
+        }
+
+        // Get only the tokens from the answer portion
+        const byToken = allTokens.slice(answerStartIndex);
+
+        console.log(
+            `Total tokens: ${allTokens.length}, Question tokens: ${answerStartIndex}, Answer tokens: ${byToken.length}`
+        );
 
         // Store submission in database
         console.log(`Storing submission with perplexity: ${perplexity}`);
