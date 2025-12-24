@@ -8,10 +8,11 @@
     import { Button, Modal } from 'flowbite-svelte';
     import { IconSolid } from 'flowbite-svelte-icons';
     import * as Icons from 'flowbite-svelte-icons';
+    import { questions } from '$lib/questions';
 
     // --- Component State ---
     let inputText = '';
-    let selectedModel = 'gpt2'; // 'distilgpt2' or 'gpt2'
+    let selectedModel = 'gpt2'; // Not used anymore - always using RunPod with gpt2
     let loading = false;
     let progress = 0;
     let statusText = 'Ready to analyze text.';
@@ -19,13 +20,6 @@
     let errorMessage: string | null = null;
     let infoModal = false;
 
-    // Questions array with explicit IDs
-    const questions = [
-        { id: 0, text: 'What did you do today?' },
-        { id: 1, text: 'What are you thinking about?' },
-        { id: 2, text: 'What are your dreams for the future?' },
-        // Add more questions here as needed
-    ];
     let currentQuestionIndex = 0;
 
     // Function to change question
@@ -81,12 +75,13 @@
     }
 
     onMount(() => {
-        // Initialize the SlopAnalyzer with callback functions
-        slopAnalyzer = new SlopAnalyzer(
-            updateProgressExternal,
-            setErrorMessageExternal,
-            onTokenProcessedExternal // Add the new callback
-        );
+        // Note: SlopAnalyzer is no longer used - we use RunPod API instead
+        // Keeping the code around for reference
+        // slopAnalyzer = new SlopAnalyzer(
+        //     updateProgressExternal,
+        //     setErrorMessageExternal,
+        //     onTokenProcessedExternal
+        // );
     });
 
     // Pick a color based on how "expected" a log-probability is
@@ -112,68 +107,90 @@
             errorMessage = 'Please enter some text.';
             return;
         }
-        if (!slopAnalyzer) {
-            errorMessage = 'Analyzer not initialized. Please refresh.';
-            return;
-        }
 
         loading = true;
         analysisResults = null;
         progressiveTokensArray = []; // Clear previous progressive results
         progressiveResultsArray = []; // Clear previous progressive results
-        updateProgressExternal(0, 'Starting analysis with ' + selectedModel + '...');
+        errorMessage = null;
+        updateProgressExternal(0, 'Loading...');
 
         try {
-            // Format the input as Q&A
-            const formattedInput = `q:${questions[currentQuestionIndex].text} a:${inputText.toLowerCase()}`;
+            // Call the new analyze endpoint
+            const response = await fetch('/api/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    text: inputText.toLowerCase(),
+                    questionId: questions[currentQuestionIndex].id,
+                }),
+            });
 
-            // First analyze the text to ensure model is loaded
-            analysisResults = await slopAnalyzer.analyzeText(formattedInput, selectedModel);
+            updateProgressExternal(0.3, 'Calculating perplexity on GPU...');
 
-            // Store the submission in the database
-            if (analysisResults && isFinite(analysisResults.perplexity)) {
-                try {
-                    const response = await fetch('/api/submit', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            text: inputText.toLowerCase(),
-                            perplexity: analysisResults.perplexity,
-                            questionId: questions[currentQuestionIndex].id,
-                        }),
-                    });
-
-                    if (!response.ok) {
-                        console.error('Failed to store submission:', await response.text());
-                    } else {
-                        console.log('Submission stored successfully');
-                    }
-                } catch (err) {
-                    console.error('Error storing submission:', err);
-                    // Don't show error to user as this is not critical
-                }
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to analyze text');
             }
 
-            // Progress and final status ("Analysis complete." or error status) are set by slopAnalyzer via callbacks.
+            const data = await response.json();
+
+            updateProgressExternal(0.6, 'Processing results...');
+
+            // Convert RunPod response to the format expected by the UI
+            // First token is shown without styling, rest are in results with styling
+            const allTokens = data.by_token.map((t: any) => t.token);
+            const tokens = [allTokens[0]]; // First token goes in tokens array
+            const results = allTokens.slice(1).map((token: string, index: number) => {
+                const tokenData = data.by_token[index + 1]; // +1 because we skipped first
+                return {
+                    token: token,
+                    tokenId: index + 1,
+                    logProbability: Math.log(tokenData.probability),
+                    probability: tokenData.probability,
+                };
+            });
+
+            analysisResults = {
+                tokens: allTokens, // Store all tokens for reference
+                results,
+                averageLogProb: Math.log(1 / data.perplexity), // Approximate from perplexity
+                perplexity: data.perplexity,
+            };
+
+            // Animate the progressive display (fake animation since we have all data)
+            animateProgressiveDisplay(tokens, results);
+
+            updateProgressExternal(1, 'Analysis complete!');
+            statusText = `Analysis complete! Rank: ${data.placement.rank}/${data.placement.total} (${data.placement.percentile.toFixed(1)}th percentile)`;
         } catch (err: any) {
             console.error('Error during analysis:', err);
-            if (!errorMessage) {
-                errorMessage = err.message || 'An unexpected error occurred.';
-            }
+            errorMessage = err.message || 'An unexpected error occurred.';
             statusText = 'Analysis failed.';
         } finally {
             loading = false;
-            if (!analysisResults) {
-                analysisResults = {
-                    tokens: [],
-                    results: [],
-                    averageLogProb: -Infinity,
-                    perplexity: Infinity,
-                };
-            }
         }
+    }
+
+    // Animate the progressive display of tokens
+    function animateProgressiveDisplay(tokens: string[], results: any[]) {
+        progressiveTokensArray = [tokens[0]]; // Start with first token
+        progressiveResultsArray = [];
+
+        // Animate subsequent tokens
+        let currentIndex = 0;
+        const intervalMs = Math.min(100, 3000 / results.length); // Faster for long texts
+
+        const interval = setInterval(() => {
+            if (currentIndex < results.length) {
+                progressiveResultsArray = [...progressiveResultsArray, results[currentIndex]];
+                currentIndex++;
+            } else {
+                clearInterval(interval);
+            }
+        }, intervalMs);
     }
 
     // Make spaces visible
