@@ -250,8 +250,10 @@
     <!-- TensorFlow.js and Transformers.js are loaded via imports -->
 </svelte:head>
 
-<div class="max-w-3xl mx-auto p-6 md:p-8 my-2 font-terminal">
-    <h1 class="text-8xl !font-terminal-open text-center text-gray-800 mb-6">Are you Slop?</h1>
+<div class="max-w-3xl mx-auto p-4 md:p-8 my-2 font-terminal">
+    <h1 class="text-6xl md:text-8xl !font-terminal-open text-center text-gray-800 mb-3 md:mb-6">
+        Are you Slop?
+    </h1>
 
     <Modal title="???" bind:open={infoModal} autoclose>
         <p class="text-base leading-relaxed text-gray-500 dark:text-gray-400">
@@ -295,26 +297,26 @@
     <!-- Input Section -->
     <div class="mb-6 space-y-4">
         <div>
-            <div class="flex justify-between items-center mb-2">
-                <label for="inputText" class="block text-2xl font-medium text-gray-700"
-                    >{questions[currentQuestionIndex].text}</label
+            <label for="inputText" class="block text-xl md:text-2xl font-medium text-gray-700 mb-2"
+                >{questions[currentQuestionIndex].text}</label
+            >
+
+            <!-- Question Navigation (Below on mobile, inline on desktop) -->
+            <div class="flex gap-2 mb-3">
+                <button
+                    on:click={() => changeQuestion('prev')}
+                    disabled={currentQuestionIndex === 0}
+                    class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                <div class="flex gap-2">
-                    <button
-                        on:click={() => changeQuestion('prev')}
-                        disabled={currentQuestionIndex === 0}
-                        class="px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        ← Previous
-                    </button>
-                    <button
-                        on:click={() => changeQuestion('next')}
-                        disabled={currentQuestionIndex === questions.length - 1}
-                        class="px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        Next →
-                    </button>
-                </div>
+                    ← Previous
+                </button>
+                <button
+                    on:click={() => changeQuestion('next')}
+                    disabled={currentQuestionIndex === questions.length - 1}
+                    class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    Next →
+                </button>
             </div>
             <textarea
                 id="inputText"
@@ -345,11 +347,11 @@
             </div>
         </div>
 
-        <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div class="flex justify-end">
             <button
                 on:click={analyzeText}
                 disabled={loading || !inputText.trim()}
-                class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-md transition duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+                class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-md transition duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 {#if loading}
                     <svg
@@ -376,24 +378,6 @@
                 {:else}
                     Analyze Text
                 {/if}
-            </button>
-            <button
-                on:click={() => (infoModal = true)}
-                class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-md transition duration-200 ease-in-out"
-            >
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-5 w-5 inline mr-2"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                >
-                    <path
-                        fill-rule="evenodd"
-                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                        clip-rule="evenodd"
-                    />
-                </svg>
-                Info
             </button>
         </div>
     </div>
@@ -464,6 +448,21 @@
     {/if}
 </div>
 
+<!-- Fixed Info Button (Bottom Left) -->
+<button
+    on:click={() => (infoModal = true)}
+    class="info-button-fixed !rounded-full"
+    title="Information"
+>
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+        <path
+            fill-rule="evenodd"
+            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+            clip-rule="evenodd"
+        />
+    </svg>
+</button>
+
 <style>
     /* Terminal UI overrides */
     .max-w-3xl {
@@ -527,7 +526,7 @@
         background: #23272e !important;
     }
 
-    button {
+    button:not(.info-button-fixed) {
         background: #23272e !important;
         color: #bada55 !important;
         border: 2px solid #bada55 !important;
@@ -539,7 +538,7 @@
             background 0.2s,
             color 0.2s;
     }
-    button:hover {
+    button:not(.info-button-fixed):hover {
         background: #bada55 !important;
         color: #23272e !important;
     }
@@ -594,5 +593,42 @@
     /* Remove Tailwind's default focus ring */
     :focus {
         box-shadow: none !important;
+    }
+
+    /* Fixed Info Button */
+    .info-button-fixed {
+        position: fixed;
+        bottom: 1rem;
+        left: 1rem;
+        width: 48px;
+        height: 48px;
+        border-radius: 50% !important;
+        background: #23272e !important;
+        color: #bada55 !important;
+        border: 2px solid #bada55 !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 1000;
+        transition:
+            background 0.2s,
+            color 0.2s,
+            transform 0.2s;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        font-weight: normal;
+    }
+
+    @media (min-width: 768px) {
+        .info-button-fixed {
+            bottom: 2rem;
+            left: 2rem;
+        }
+    }
+
+    .info-button-fixed:hover {
+        background: #bada55 !important;
+        color: #23272e !important;
+        transform: scale(1.1);
     }
 </style>
