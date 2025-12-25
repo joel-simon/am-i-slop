@@ -10,6 +10,7 @@
         type StoredSubmission,
     } from '$lib/utils/localStorage';
     import { getSlopEmoji } from '$lib/utils/slopMessages';
+    import { SITE_CONFIG, META_TAGS } from '$lib/config';
     import DistributionPreview from '../lib/components/DistributionPreview.svelte';
 
     // --- Component State ---
@@ -176,7 +177,22 @@
 </script>
 
 <svelte:head>
-    <title>Are you Slop?</title>
+    <title>{META_TAGS.home.title}</title>
+    <meta name="description" content={META_TAGS.home.description} />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={SITE_CONFIG.url + '/'} />
+    <meta property="og:title" content={META_TAGS.home.title} />
+    <meta property="og:description" content={META_TAGS.home.description} />
+    <meta property="og:image" content={SITE_CONFIG.image} />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary" />
+    <meta property="twitter:url" content={SITE_CONFIG.url + '/'} />
+    <meta property="twitter:title" content={META_TAGS.home.title} />
+    <meta property="twitter:description" content={META_TAGS.home.description} />
+    <meta property="twitter:image" content={SITE_CONFIG.image} />
 </svelte:head>
 
 <div class="max-w-3xl mx-auto p-4 md:p-8 my-2 font-terminal">

@@ -3,6 +3,7 @@
     import ScoreDistributionHistogram from '$lib/components/ScoreDistributionHistogram.svelte';
     import NeighboringSubmissions from '$lib/components/NeighboringSubmissions.svelte';
     import { getSlopMessage } from '$lib/utils/slopMessages';
+    import { SITE_CONFIG } from '$lib/config';
 
     export let data: PageData;
 
@@ -12,7 +13,37 @@
 </script>
 
 <svelte:head>
-    <title>Submission Results - Are you Slop?</title>
+    <title>{slopMessage.title} - {SITE_CONFIG.name}</title>
+    <meta
+        name="description"
+        content="Perplexity: {submission.perplexity.toFixed(
+            2
+        )} | Slop Percentile: {placement.slopPercentile.toFixed(0)}% | {slopMessage.subtitle}"
+    />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="{SITE_CONFIG.url}/submissions/{submission.text_hash}" />
+    <meta property="og:title" content="{slopMessage.emoji} {slopMessage.title}" />
+    <meta
+        property="og:description"
+        content="I got a perplexity score of {submission.perplexity.toFixed(
+            2
+        )} (Slop Percentile: {placement.slopPercentile.toFixed(0)}%). {slopMessage.subtitle}"
+    />
+    <meta property="og:image" content={SITE_CONFIG.image} />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary" />
+    <meta property="twitter:url" content="{SITE_CONFIG.url}/submissions/{submission.text_hash}" />
+    <meta property="twitter:title" content="{slopMessage.emoji} {slopMessage.title}" />
+    <meta
+        property="twitter:description"
+        content="I got a perplexity score of {submission.perplexity.toFixed(
+            2
+        )} (Slop Percentile: {placement.slopPercentile.toFixed(0)}%). {slopMessage.subtitle}"
+    />
+    <meta property="twitter:image" content={SITE_CONFIG.image} />
 </svelte:head>
 
 <div class="max-w-3xl mx-auto p-4 md:p-8 my-2 font-terminal">
@@ -81,7 +112,7 @@
             on:click={async () => {
                 try {
                     await navigator.clipboard.writeText(
-                        `https://amislop.com${window.location.pathname}`
+                        `${SITE_CONFIG.url}${window.location.pathname}`
                     );
                     showCopied = true;
                     setTimeout(() => (showCopied = false), 1600);
