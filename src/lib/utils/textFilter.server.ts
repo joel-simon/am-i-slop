@@ -117,6 +117,10 @@ const commonAcronyms = [
     'pwn',
     'meme',
     'memes',
+    // Contraction parts that might not be in dictionary
+    'wouldn',
+    'shouldn',
+    'couldn',
     // Tech/AI terms
     'ai',
     'ml',
