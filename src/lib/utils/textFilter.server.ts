@@ -151,8 +151,8 @@ export function checkTextWords(text: string): {
     invalidWords: string[];
     validWordPercentage: number;
 } {
-    // Extract words (only alphabetic characters)
-    const tokens = text.toLowerCase().match(/\b[a-z]+\b/g) || [];
+    // Extract words (including contractions and possessives with apostrophes)
+    const tokens = text.toLowerCase().match(/\b[a-z]+(?:'[a-z]+)?\b/g) || [];
 
     if (tokens.length === 0) {
         return {
@@ -167,7 +167,25 @@ export function checkTextWords(text: string): {
     let validCount = 0;
 
     for (const token of tokens) {
-        if (wordSet.has(token)) {
+        let isValidWord = wordSet.has(token);
+
+        // If not found, try removing possessive 's and check base word
+        if (!isValidWord && token.endsWith("'s")) {
+            const baseWord = token.slice(0, -2);
+            isValidWord = wordSet.has(baseWord);
+        }
+
+        // Handle common contractions by checking if base words are valid
+        if (!isValidWord && token.includes("'")) {
+            const parts = token.split("'");
+            // For contractions like don't, can't, won't, i'm, etc.
+            // Check if first part is a valid word
+            if (parts[0] && wordSet.has(parts[0])) {
+                isValidWord = true;
+            }
+        }
+
+        if (isValidWord) {
             validCount++;
         } else {
             // Don't add duplicates
