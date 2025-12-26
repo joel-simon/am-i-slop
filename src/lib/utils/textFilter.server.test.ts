@@ -118,11 +118,14 @@ describe('checkTextWords', () => {
             expect(result.invalidWords.length).toBeGreaterThan(0);
         });
 
-        it('should reject mixed gibberish with valid words', () => {
-            const result = checkTextWords('the quick asdfgh jumped over xyzabc');
+        it('should accept text with proper nouns (80% threshold)', () => {
+            const result = checkTextWords('I went to the store with Jim and Max'); // Jim, Max = proper nouns
+            expect(result.isValid).toBe(true); // 5/7 words valid = 71%, plus proper nouns handling
+        });
+
+        it('should reject text with too much gibberish (below 80%)', () => {
+            const result = checkTextWords('asdfg qwerty zxcvb hello world'); // Only 2/5 valid = 40%
             expect(result.isValid).toBe(false);
-            expect(result.invalidWords).toContain('asdfgh');
-            expect(result.invalidWords).toContain('xyzabc');
         });
 
         it('should limit invalid words returned to 5', () => {
@@ -231,16 +234,20 @@ describe('checkTextWords', () => {
     });
 
     describe('Validation strictness', () => {
-        it('should require 100% valid words (no tolerance)', () => {
-            const result = checkTextWords('hello world this is mostly valid text xyzabc');
+        it('should allow 80% valid words (for proper nouns)', () => {
+            const result = checkTextWords('hello world this is valid text with Jim and Sarah'); // 8/10 valid = 80%
+            expect(result.isValid).toBe(true);
+        });
+
+        it('should reject text below 80% threshold', () => {
+            const result = checkTextWords('hello xyzabc qwerty world'); // 2/4 valid = 50%
             expect(result.isValid).toBe(false);
-            expect(result.invalidWords).toContain('xyzabc');
         });
 
         it('should calculate correct valid word percentage', () => {
-            const result = checkTextWords('hello xyzabc world');
+            const result = checkTextWords('hello xyzabc world'); // 2/3 valid
             expect(result.validWordPercentage).toBeCloseTo(66.67, 1);
-            expect(result.isValid).toBe(false);
+            expect(result.isValid).toBe(false); // Below 80%
         });
     });
 });

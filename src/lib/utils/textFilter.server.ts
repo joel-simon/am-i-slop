@@ -204,8 +204,8 @@ export function checkTextWords(text: string): {
 
     const validWordPercentage = (validCount / tokens.length) * 100;
 
-    // All words must be valid - no tolerance for gibberish
-    const isValid = invalidWords.length === 0;
+    // Allow 80% valid words to account for proper nouns, names, places, brands, etc.
+    const isValid = validWordPercentage >= 80;
 
     return {
         isValid,
@@ -263,7 +263,7 @@ export async function validateTextServer(
         return {
             isValid: false,
             sanitized,
-            error: `Please use real English words only. Found invalid or unrecognized words${exampleWords}.`,
+            error: `Please avoid excessive gibberish or keyboard mashing. Most words should be recognizable English${exampleWords}. (Names and proper nouns are okay!)`,
         };
     }
 
