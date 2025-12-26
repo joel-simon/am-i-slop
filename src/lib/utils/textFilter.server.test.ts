@@ -139,6 +139,24 @@ describe('checkTextWords', () => {
             expect(result.validWordPercentage).toBe(0);
         });
 
+        it('should handle only punctuation', () => {
+            const result = checkTextWords('!!!!!...!!');
+            expect(result.isValid).toBe(false);
+            expect(result.validWordPercentage).toBe(0);
+        });
+
+        it('should handle only numbers and punctuation', () => {
+            const result = checkTextWords('123456... !!!');
+            expect(result.isValid).toBe(false);
+            expect(result.validWordPercentage).toBe(0);
+        });
+
+        it('should handle excessive punctuation with valid words', () => {
+            const result = checkTextWords('hello!!!! world.... amazing!!!');
+            expect(result.isValid).toBe(true);
+            expect(result.invalidWords).toHaveLength(0);
+        });
+
         it('should handle single valid word', () => {
             const result = checkTextWords('hello');
             expect(result.isValid).toBe(true);
