@@ -43,6 +43,7 @@ export interface ValidationResult {
 
 /**
  * Sanitize text to prevent XSS and remove dangerous characters
+ * Also normalizes excessive punctuation and collapses repeated characters
  */
 export function sanitizeText(text: string): string {
     // Remove HTML tags and script content
@@ -55,9 +56,15 @@ export function sanitizeText(text: string): string {
     // Remove null bytes and other dangerous characters
     sanitized = sanitized.replace(/\0/g, '');
 
-    // Keep only printable ASCII and common punctuation (allow spaces, letters, numbers, basic punctuation)
-    // This allows: a-z, A-Z, 0-9, space, and common punctuation like . , ! ? ' " - ( )
-    sanitized = sanitized.replace(/[^\x20-\x7E]/g, '');
+    // Keep only letters, numbers, spaces, and basic punctuation: . , ! ? ' " - ( )
+    // Remove all other special characters like %^&*@#$~ etc.
+    sanitized = sanitized.replace(/[^a-zA-Z0-9\s.,!?'"()-]/g, '');
+
+    // Collapse repeated punctuation: !!!! -> !  .... -> .  ??? -> ?
+    sanitized = sanitized.replace(/([.,!?'"()-])\1+/g, '$1');
+
+    // Collapse repeated characters (3+ in a row): helllo -> hello, woooow -> woow
+    sanitized = sanitized.replace(/(.)\1{2,}/g, '$1$1');
 
     // Trim whitespace
     sanitized = sanitized.trim();

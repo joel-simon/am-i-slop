@@ -93,6 +93,9 @@ const commonAcronyms = [
     'yeah',
     'ok',
     'okay',
+    'soo', // from repeated 'so'
+    'haha',
+    'omfg',
     // Modern slang
     'sus',
     'salty',
