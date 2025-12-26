@@ -4,7 +4,7 @@ import runpodSdk from 'runpod-sdk';
 import { RUNPOD_API_KEY, ENDPOINT_ID } from '$env/static/private';
 import { storeTextSubmission, getSubmissionsForQuestion } from '$lib/db/schema';
 import { getQuestionText } from '$lib/questions';
-import { validateText } from '$lib/utils/textFilter';
+import { validateTextServer } from '$lib/utils/textFilter.server';
 
 // Initialize RunPod SDK
 let runpodClient: ReturnType<typeof runpodSdk> | null = null;
@@ -32,7 +32,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
         // Server-side validation and sanitization (defense in depth)
         // Min 16 chars, Max 256 chars
-        const validation = await validateText(text, 16, 256);
+        // Uses full English word dictionary validation (server-only)
+        const validation = await validateTextServer(text, 16, 256);
 
         if (!validation.isValid) {
             console.warn(`Validation failed for text: ${validation.error}`);

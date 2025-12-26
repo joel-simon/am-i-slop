@@ -1,3 +1,6 @@
+// CLIENT-SAFE: Lightweight validation without large dictionaries
+// For server-side validation with word dictionary, use textFilter.server.ts
+
 // Use dynamic import for bad-words to avoid SSR issues
 let filter: any = null;
 
@@ -7,7 +10,8 @@ const profanityList = ['fuck', 'shit', 'damn', 'ass', 'bitch', 'cunt', 'dick', '
 async function getFilter() {
     if (!filter) {
         try {
-            const Filter = (await import('bad-words')).default;
+            const badWordsModule: any = await import('bad-words');
+            const Filter = badWordsModule.default || badWordsModule;
             filter = new Filter();
         } catch (e) {
             console.warn('bad-words package not available, using fallback');
@@ -15,16 +19,16 @@ async function getFilter() {
             filter = {
                 isProfane: (text: string) => {
                     const lower = text.toLowerCase();
-                    return profanityList.some(word => lower.includes(word));
+                    return profanityList.some((word) => lower.includes(word));
                 },
                 clean: (text: string) => {
                     let cleaned = text;
-                    profanityList.forEach(word => {
+                    profanityList.forEach((word) => {
                         const regex = new RegExp(word, 'gi');
                         cleaned = cleaned.replace(regex, '*'.repeat(word.length));
                     });
                     return cleaned;
-                }
+                },
             };
         }
     }
@@ -43,30 +47,31 @@ export interface ValidationResult {
 export function sanitizeText(text: string): string {
     // Remove HTML tags and script content
     let sanitized = text.replace(/<[^>]*>/g, '');
-    
+
     // Remove script-like patterns
     sanitized = sanitized.replace(/javascript:/gi, '');
     sanitized = sanitized.replace(/on\w+\s*=/gi, '');
-    
+
     // Remove null bytes and other dangerous characters
     sanitized = sanitized.replace(/\0/g, '');
-    
+
     // Keep only printable ASCII and common punctuation (allow spaces, letters, numbers, basic punctuation)
     // This allows: a-z, A-Z, 0-9, space, and common punctuation like . , ! ? ' " - ( )
     sanitized = sanitized.replace(/[^\x20-\x7E]/g, '');
-    
+
     // Trim whitespace
     sanitized = sanitized.trim();
-    
+
     // Normalize multiple spaces to single space
     sanitized = sanitized.replace(/\s+/g, ' ');
-    
+
     return sanitized;
 }
 
 /**
- * Validate and filter text input
+ * CLIENT-SAFE: Validate and filter text input (without word dictionary check)
  * Returns validation result with sanitized text or error message
+ * For full server-side validation with word check, use textFilter.server.ts
  */
 export async function validateText(
     text: string,
@@ -75,7 +80,7 @@ export async function validateText(
 ): Promise<ValidationResult> {
     // First sanitize
     const sanitized = sanitizeText(text);
-    
+
     // Check if empty after sanitization
     if (!sanitized || sanitized.trim().length === 0) {
         return {
@@ -84,7 +89,7 @@ export async function validateText(
             error: 'Text is empty or contains only invalid characters',
         };
     }
-    
+
     // Check minimum length
     if (sanitized.length < minLength) {
         return {
@@ -93,7 +98,7 @@ export async function validateText(
             error: `Text is too short. Minimum ${minLength} characters required (currently ${sanitized.length}).`,
         };
     }
-    
+
     // Check maximum length
     if (sanitized.length > maxLength) {
         return {
@@ -102,7 +107,7 @@ export async function validateText(
             error: `Text is too long. Maximum ${maxLength} characters allowed.`,
         };
     }
-    
+
     // Check for profanity
     const filterInstance = await getFilter();
     if (filterInstance.isProfane(sanitized)) {
@@ -112,7 +117,7 @@ export async function validateText(
             error: 'Text contains inappropriate language. Please keep it clean!',
         };
     }
-    
+
     return {
         isValid: true,
         sanitized,
@@ -126,4 +131,3 @@ export function getValidationError(result: ValidationResult): string | null {
     if (result.isValid) return null;
     return result.error || 'Invalid input';
 }
-
