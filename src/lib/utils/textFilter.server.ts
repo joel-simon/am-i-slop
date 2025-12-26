@@ -179,9 +179,8 @@ export function checkTextWords(text: string): {
 
     const validWordPercentage = (validCount / tokens.length) * 100;
 
-    // Require at least 80% of words to be valid
-    // This allows for some typos or names while still catching gibberish
-    const isValid = validWordPercentage >= 80 && invalidWords.length <= 3;
+    // All words must be valid - no tolerance for gibberish
+    const isValid = invalidWords.length === 0;
 
     return {
         isValid,
