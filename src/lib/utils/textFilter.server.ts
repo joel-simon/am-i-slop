@@ -204,8 +204,9 @@ export function checkTextWords(text: string): {
 
     const validWordPercentage = (validCount / tokens.length) * 100;
 
-    // Allow 80% valid words to account for proper nouns, names, places, brands, etc.
-    const isValid = validWordPercentage >= 80;
+    // Allow X% valid words to account for proper nouns, names, places, brands, etc.
+    const threshold = 60; //tokens.length > 10 ? 80 : 50;
+    const isValid = validWordPercentage >= threshold;
 
     return {
         isValid,

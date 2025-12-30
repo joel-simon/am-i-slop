@@ -47,9 +47,9 @@
 </svelte:head>
 
 <div class="max-w-3xl mx-auto p-4 md:p-8 my-2 font-terminal">
-    <a href="/" class="back-link text-sm mb-4 inline-block">← Submit Another</a>
+    <a href="/" class="back-link text-sm inline-block">← Submit Another</a>
 
-    <h1 class="text-4xl md:text-5xl !font-terminal-open text-center text-gray-800 mb-6">
+    <h1 class="text-4xl pt-12 md:text-5xl !font-terminal-open text-center text-gray-800 mb-6">
         Your Results
     </h1>
 
@@ -166,9 +166,10 @@
     .back-link {
         color: #8a8a8a;
         text-decoration: none;
-        margin-top: 2.5em;
+        margin-top: 3.5em;
         display: inline-block;
         transition: color 0.2s;
+        position: absolute;
     }
 
     .back-link:hover {
@@ -177,9 +178,9 @@
 
     h1 {
         color: #c7f774;
-        text-shadow:
+        /* text-shadow:
             0 0 2px #bada55,
-            0 0 8px #222;
+            0 0 8px #222; */
         margin-top: 0.5em;
         font-family: 'Terminal Grotesque Open', 'Fira Mono', 'Consolas', monospace;
     }

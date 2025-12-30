@@ -212,9 +212,9 @@
 
     .preview-title {
         color: #bada55;
-        text-shadow:
+        /* text-shadow:
             0 0 2px #bada55,
-            0 0 4px #222;
+            0 0 4px #222; */
         font-size: 1.125rem;
         font-weight: 600;
         margin-bottom: 0.75rem;

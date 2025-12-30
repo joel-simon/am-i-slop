@@ -189,9 +189,9 @@
 
     .section-title {
         color: #bada55;
-        text-shadow:
+        /* text-shadow:
             0 0 2px #bada55,
-            0 0 4px #222;
+            0 0 4px #222; */
         font-weight: 600;
         margin-bottom: 1rem;
     }

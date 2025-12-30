@@ -208,9 +208,9 @@
     h1,
     h2 {
         color: #c7f774;
-        text-shadow:
+        /* text-shadow:
             0 0 2px #bada55,
-            0 0 8px #222;
+            0 0 8px #222; */
     }
 
     .text-lime {
